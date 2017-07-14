@@ -18,6 +18,14 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    sourceSets {
+        main.java.srcDirs += "build/generated/source/kapt/debug"
+    }
+}
+
+kapt {
+    // generate *PermissionsDispatcher stubs for Kotlin compiler
+//    generateStubs = true
 }
 
 dependencies {
@@ -25,11 +33,22 @@ dependencies {
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    compile 'com.android.support:appcompat-v7:25.3.1'
-    testCompile 'junit:junit:4.12'
-    compile 'com.android.support.constraint:constraint-layout:1.0.2'
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre7:$kotlin_version"
+    compile("com.github.hotchemi:permissionsdispatcher:$permission_dispatcher_version") {
+        // if you don't use android.app.Fragment you can exclude support for them
+        exclude module: "support-v13"
+    }
+    kapt "com.github.hotchemi:permissionsdispatcher-processor:$permission_dispatcher_version"
+    compile 'com.android.support:appcompat-v7:25.3.1'
+    compile 'com.android.support.constraint:constraint-layout:1.0.2'
+    compile 'io.reactivex.rxjava2:rxkotlin:2.1.0'
+    compile 'io.reactivex.rxjava2:rxandroid:2.0.1'
+    testCompile 'junit:junit:4.12'
+    compile 'com.github.dmytrodanylyk.android-process-button:library:1.0.4'
+    compile "com.jakewharton:butterknife:8.6.0"
+    kapt "com.jakewharton:butterknife-compiler:8.6.0"
 }
 repositories {
+    jcenter()
     mavenCentral()
 }
