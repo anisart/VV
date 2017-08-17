@@ -4,24 +4,29 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
-    tools:context="ru.anisart.vw.MainActivity">
+    tools:context="ru.anisart.vv.MainActivity">
 
-    <Button
+    <com.dd.processbutton.iml.ActionProcessButton
+        style="@style/vv_button"
+        android:id="@+id/osmandBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select OsmAnd folder"/>
+
+    <com.dd.processbutton.iml.ActionProcessButton
+        style="@style/vv_button"
         android:id="@+id/updateBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Update Vw data"/>
 
     <com.dd.processbutton.iml.ActionProcessButton
+        style="@style/vv_button"
         android:id="@+id/recreateBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Recreate tiles and tracks"
-        app:pb_textComplete="Success"
-        app:pb_textProgress="Creating..."
-        app:pb_textError="Error"/>
+        android:text="Recreate tiles and rides"/>
 
     <ProgressBar
         android:id="@+id/progressBar"

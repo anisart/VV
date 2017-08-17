@@ -1,4 +1,4 @@
-package ru.anisart.vw;
+package ru.anisart.vv;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;

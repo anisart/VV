@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">VW</string>
+    <string name="app_name">Explorer helper for VeloViewer</string>
+    <string name="launcher_name">VV Explorer</string>
 </resources>

@@ -1,0 +1,14 @@
+[url_template]
+https://anisart.github.io/{0}/not_explorer.png
+[ext]
+.png
+[min_zoom]
+14
+[max_zoom]
+14
+[tile_size]
+256
+[img_density]
+16
+[avg_img_size]
+1500

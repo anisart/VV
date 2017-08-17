@@ -5,21 +5,26 @@ android {
     compileSdkVersion 25
     buildToolsVersion "25.0.2"
     defaultConfig {
-        applicationId "ru.anisart.vw"
+        applicationId "ru.anisart.vv"
         minSdkVersion 19
         targetSdkVersion 25
-        versionCode 1
+        versionCode 2
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
+        debug {
+            sourceSets {
+                main.java.srcDirs += "build/generated/source/kapt/debug"
+            }
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            sourceSets {
+                main.java.srcDirs += "build/generated/source/kapt/release"
+            }
         }
-    }
-    sourceSets {
-        main.java.srcDirs += "build/generated/source/kapt/debug"
     }
 }
 
@@ -40,15 +45,18 @@ dependencies {
     }
     kapt "com.github.hotchemi:permissionsdispatcher-processor:$permission_dispatcher_version"
     compile 'com.android.support:appcompat-v7:25.3.1'
-    compile 'com.android.support.constraint:constraint-layout:1.0.2'
     compile 'io.reactivex.rxjava2:rxkotlin:2.1.0'
     compile 'io.reactivex.rxjava2:rxandroid:2.0.1'
     testCompile 'junit:junit:4.12'
     compile 'com.github.dmytrodanylyk.android-process-button:library:1.0.4'
     compile "com.jakewharton:butterknife:8.6.0"
     kapt "com.jakewharton:butterknife-compiler:8.6.0"
+    compile ('com.github.codekidX:storage-chooser:2.0.1') {
+        exclude group: 'com.android.support'
+    }
 }
 repositories {
     jcenter()
     mavenCentral()
+    maven { url "https://jitpack.io" }
 }

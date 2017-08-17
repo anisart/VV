@@ -3,9 +3,18 @@
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
         <!-- Customize your theme here. -->
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
+        <item name="colorPrimary">@color/vv_blue</item>
+        <item name="colorPrimaryDark">@color/vv_blueDark</item>
+        <item name="colorAccent">@color/vv_red</item>
+    </style>
+
+    <style name="vv_button">
+        <item name="pb_colorNormal">@color/vv_red</item>
+        <item name="pb_colorComplete">@color/vv_red</item>
+        <item name="pb_colorPressed">@color/vv_red</item>
+        <item name="pb_colorProgress">@color/vv_blue</item>
+        <item name="android:layout_margin">4dp</item>
+        <item name="android:textColor">#FFFFFF</item>
     </style>
 
 </resources>

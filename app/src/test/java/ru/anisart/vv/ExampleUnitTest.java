@@ -1,4 +1,4 @@
-package ru.anisart.vw;
+package ru.anisart.vv;
 
 import org.junit.Test;
 
