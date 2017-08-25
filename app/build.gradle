@@ -9,7 +9,7 @@ android {
         applicationId "ru.anisart.vv"
         minSdkVersion 19
         targetSdkVersion 25
-        versionCode 11
+        versionCode 16
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
@@ -86,7 +86,7 @@ dependencies {
     compile ('com.github.codekidX:storage-chooser:2.0.1') {
         exclude group: 'com.android.support'
     }
-    compile('com.mapbox.mapboxsdk:mapbox-android-sdk:5.1.0@aar') {
+    compile('com.mapbox.mapboxsdk:mapbox-android-sdk:5.1.3@aar') {
         transitive = true
     }
 //    compile 'com.mapbox.mapboxsdk:mapbox-android-services:2.1.3@aar'

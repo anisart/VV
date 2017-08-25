@@ -7,6 +7,7 @@ class App : Application() {
 
     companion object {
         val PREFERENCE_TILES = "explorer_tiles"
+        val PREFERENCE_RIDES_JSON = "rides_json"
     }
 
     private val PUBLIC_KEY = "pk.eyJ1IjoiYW5pc2FydCIsImEiOiJjaWtsMHNuZWswMDZqdm1tNmYydWl6M2pvIn0.OFsPC78TmKIRtp9WhlsN_w"

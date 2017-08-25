@@ -1,19 +1,18 @@
 package ru.anisart.vv
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.preference.PreferenceManager
-import android.view.Menu
-import android.view.MenuItem
+import android.view.View
 import android.webkit.*
 import android.widget.ProgressBar
 import android.widget.Toast
 import butterknife.BindView
 import butterknife.ButterKnife
+import butterknife.OnClick
 import com.dd.processbutton.iml.ActionProcessButton
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -49,6 +48,8 @@ class MainActivity : AppCompatActivity() {
     lateinit var recreateBtn: ActionProcessButton
     @BindView(R.id.osmandBtn)
     lateinit var osmandBtn: ActionProcessButton
+    @BindView(R.id.mapBtn)
+    lateinit var mapBtn: ActionProcessButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,18 +89,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.menu_main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem?): Boolean {
-        if (item?.itemId == R.id.action_map) {
-            startActivity(Intent(this, MapActivity::class.java))
-                    return true
-        }
-        return super.onOptionsItemSelected(item)
-    }
+//    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+//        menuInflater.inflate(R.menu.menu_main, menu)
+//        return true
+//    }
+//
+//    override fun onOptionsItemSelected(item: MenuItem?): Boolean {
+//        if (item?.itemId == R.id.action_map) {
+//            startActivity(Intent(this, MapActivity::class.java))
+//                    return true
+//        }
+//        return super.onOptionsItemSelected(item)
+//    }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
@@ -139,7 +140,26 @@ class MainActivity : AppCompatActivity() {
                 .map { s -> createGpxFile(s) }
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe({ Toast.makeText(this, "All rides has been saved!", Toast.LENGTH_SHORT).show() })
+                .subscribe({
+                    Toast.makeText(this, "All rides has been saved!", Toast.LENGTH_SHORT).show()
+                }, { e -> run {
+                    e.printStackTrace()
+                    Toast.makeText(this, "Error during creating rides file.", Toast.LENGTH_SHORT).show()
+                }})
+    }
+
+    @JavascriptInterface
+    fun setAllRidesJson(json: String) {
+        Observable.just(json)
+                .map { s -> saveGeoJson(s) }
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe({
+                    Toast.makeText(this, "[MAP] All rides has been saved!", Toast.LENGTH_SHORT).show()
+                }, { e -> run {
+                    e.printStackTrace()
+                    Toast.makeText(this, "Error during creating rides file.", Toast.LENGTH_SHORT).show()
+                }})
     }
 
     fun createDirs(): Boolean {
@@ -170,7 +190,10 @@ class MainActivity : AppCompatActivity() {
                     if (recreateBtn.progress == 100) {
                         Toast.makeText(this, "Explorer tiles has been recreated!", Toast.LENGTH_SHORT).show()
                     }
-                })
+                }, { e -> run {
+                    e.printStackTrace()
+                    Toast.makeText(this, "Error during creating tiles.", Toast.LENGTH_SHORT).show()
+                }})
     }
 
     fun copyAssetTFile(assetName: String, file: File) {
@@ -200,6 +223,12 @@ class MainActivity : AppCompatActivity() {
         fileWriter.append(gpx)
         fileWriter.flush()
         fileWriter.close()
+    }
+
+    fun saveGeoJson(json: String) {
+        preferences.edit()
+                .putString(App.PREFERENCE_RIDES_JSON, json)
+                .apply()
     }
 
     @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -241,6 +270,8 @@ class MainActivity : AppCompatActivity() {
                         "liveData.forEach( function(d, i) { if (d.mapFeature != null) features.push(d.mapFeature); } ); " +
                         "var gpx = new OpenLayers.Format.GPX({ 'internalProjection': toProjection, 'externalProjection': fromProjection }); " +
                         "window.JSInterface.setAllRidesGpx(gpx.write(features)); " +
+                        "var geojson = new OpenLayers.Format.GeoJSON({ 'internalProjection': toProjection, 'externalProjection': fromProjection }); " +
+                        "window.JSInterface.setAllRidesJson(geojson.write(features)); " +
                         "window.JSInterface.setExplorerTiles(Object.keys(window.explorerTiles)); " +
                         "document.getElementById('viewMapCheckBox').click();")
                 System.out.println(url)
@@ -269,4 +300,8 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl("https://veloviewer.com/update")
     }
 
+    @OnClick(R.id.mapBtn)
+    fun onMapButtonClick(v: View) {
+        startActivity(Intent(this, MapActivity::class.java))
+    }
 }

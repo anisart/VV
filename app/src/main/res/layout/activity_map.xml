@@ -8,18 +8,51 @@
     android:orientation="vertical"
     tools:context="ru.anisart.vv.MapActivity">
 
-    <com.mapbox.mapboxsdk.maps.MapView
-        android:id="@+id/mapView"
+    <android.support.design.widget.CoordinatorLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        app:mapbox_styleUrl="@string/mapbox_style_light"
-        app:mapbox_uiZoomControls="true"/>
+        android:layout_weight="1">
 
-    <Button
-        android:id="@+id/button"
-        android:onClick="onButtonClick"
-        android:layout_width="wrap_content"
+        <com.mapbox.mapboxsdk.maps.MapView
+            android:id="@+id/mapView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:mapbox_styleUrl="mapbox://styles/mapbox/outdoors-v10"
+            app:mapbox_uiRotateGestures="false"
+            app:mapbox_uiZoomControls="true"
+            app:mapbox_myLocation="true"/>
+
+        <android.support.design.widget.FloatingActionButton
+            android:id="@+id/myLocationButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:src="@android:drawable/ic_menu_mylocation"
+            app:layout_anchor="@id/mapView"
+            app:layout_anchorGravity="bottom|right|end"/>
+    </android.support.design.widget.CoordinatorLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Explorer"/>
+        android:orientation="horizontal">
+
+        <ToggleButton
+            android:id="@+id/explorerButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="false"
+            android:textOn="@string/btn_label_explorer"
+            android:textOff="@string/btn_label_explorer"/>
+
+        <ToggleButton
+            android:id="@+id/ridesButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="false"
+            android:textOn="@string/btn_label_rides"
+            android:textOff="@string/btn_label_rides"/>
+
+    </LinearLayout>
+
 </LinearLayout>
