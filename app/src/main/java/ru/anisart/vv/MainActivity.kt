@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Environment
 import android.preference.PreferenceManager
 import android.view.View
 import android.webkit.*
@@ -42,14 +43,8 @@ class MainActivity : AppCompatActivity() {
     lateinit var webView: WebView
     @BindView(R.id.progressBar)
     lateinit var progressBar: ProgressBar
-    @BindView(R.id.updateBtn)
-    lateinit var updateBtn: ActionProcessButton
     @BindView(R.id.recreateBtn)
     lateinit var recreateBtn: ActionProcessButton
-    @BindView(R.id.osmandBtn)
-    lateinit var osmandBtn: ActionProcessButton
-    @BindView(R.id.mapBtn)
-    lateinit var mapBtn: ActionProcessButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,27 +61,7 @@ class MainActivity : AppCompatActivity() {
             }
         })
         webView.addJavascriptInterface(this, "JSInterface")
-
         recreateBtn.setMode(ActionProcessButton.Mode.PROGRESS)
-        recreateBtn.setOnClickListener {
-            run {
-                osmandFolder = preferences.getString(DiskUtil.SC_PREFERENCE_KEY, "")
-                if (osmandFolder.isEmpty()) {
-                    Toast.makeText(this, "You need select OsmAnd data folder!", Toast.LENGTH_SHORT).show()
-                    return@run
-                }
-
-                MainActivityPermissionsDispatcher.setupWebviewForExplorerWithCheck(this)
-            }
-        }
-
-        updateBtn.setOnClickListener {
-            setupWebviewForUpdate()
-        }
-
-        osmandBtn.setOnClickListener {
-            MainActivityPermissionsDispatcher.selectOsmandFolderWithCheck(this)
-        }
     }
 
 //    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -117,6 +92,32 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "Check permissions for app in System Settings!", Toast.LENGTH_SHORT).show()
     }
 
+    @OnClick(R.id.osmandBtn)
+    fun onOsmandButtonClick(v: View) {
+        MainActivityPermissionsDispatcher.selectOsmandFolderWithCheck(this)
+    }
+
+    @OnClick(R.id.updateBtn)
+    fun onUpdateClick(v: View) {
+        setupWebviewForUpdate()
+    }
+
+    @OnClick(R.id.recreateBtn)
+    fun onRecleateButtonClick(v: View) {
+        osmandFolder = preferences.getString(DiskUtil.SC_PREFERENCE_KEY, "")
+        if (osmandFolder.isEmpty()) {
+            Toast.makeText(this, "You need select OsmAnd data folder!", Toast.LENGTH_SHORT).show()
+            return
+        } else {
+            MainActivityPermissionsDispatcher.setupWebviewForExplorerWithCheck(this)
+        }
+//        MainActivityPermissionsDispatcher.mockRecteateTilesAndRidesWithCheck(this)
+    }
+
+    @OnClick(R.id.mapBtn)
+    fun onMapButtonClick(v: View) {
+        startActivity(Intent(this, MapActivity::class.java))
+    }
 
     @JavascriptInterface
     fun setExplorerTiles(tiles: Array<String>?) {
@@ -141,6 +142,7 @@ class MainActivity : AppCompatActivity() {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe({
+                    println("setAllRidesGpx: ok")
                     Toast.makeText(this, "All rides has been saved!", Toast.LENGTH_SHORT).show()
                 }, { e -> run {
                     e.printStackTrace()
@@ -155,6 +157,7 @@ class MainActivity : AppCompatActivity() {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe({
+                    println("setAllRidesJson: ok")
                     Toast.makeText(this, "[MAP] All rides has been saved!", Toast.LENGTH_SHORT).show()
                 }, { e -> run {
                     e.printStackTrace()
@@ -188,6 +191,7 @@ class MainActivity : AppCompatActivity() {
                     completeCount += 1
                     recreateBtn.progress = completeCount * 100 / explorerTiles.size
                     if (recreateBtn.progress == 100) {
+                        println("createTiles: ok")
                         Toast.makeText(this, "Explorer tiles has been recreated!", Toast.LENGTH_SHORT).show()
                     }
                 }, { e -> run {
@@ -258,6 +262,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
+                System.out.println(url)
                 if (url == null || !url.contains("veloviewer.com/\\S*activities".toRegex())) {
                     webView.setOnTouchListener(null)
                     return
@@ -274,7 +279,6 @@ class MainActivity : AppCompatActivity() {
                         "window.JSInterface.setAllRidesJson(geojson.write(features)); " +
                         "window.JSInterface.setExplorerTiles(Object.keys(window.explorerTiles)); " +
                         "document.getElementById('viewMapCheckBox').click();")
-                System.out.println(url)
             }
         })
         webView.loadUrl("https://veloviewer.com/activities")
@@ -300,8 +304,11 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl("https://veloviewer.com/update")
     }
 
-    @OnClick(R.id.mapBtn)
-    fun onMapButtonClick(v: View) {
-        startActivity(Intent(this, MapActivity::class.java))
+    @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    fun mockRecteateTilesAndRides() {
+        osmandFolder = Environment.getExternalStorageDirectory().absolutePath
+        setAllRidesGpx(Mock.instance.geojson)
+        setAllRidesJson(Mock.instance.geojson)
+        setExplorerTiles(Mock.instance.explorerTiles)
     }
 }

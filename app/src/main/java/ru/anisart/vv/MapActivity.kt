@@ -10,14 +10,15 @@ import android.preference.PreferenceManager
 import android.view.View
 import android.widget.CompoundButton
 import android.widget.Toast
+import android.widget.ToggleButton
 import butterknife.BindView
 import butterknife.ButterKnife
 import butterknife.OnCheckedChanged
 import butterknife.OnClick
 import com.mapbox.mapboxsdk.annotations.PolygonOptions
-import com.mapbox.mapboxsdk.camera.CameraPosition
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.geometry.LatLng
+import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import com.mapbox.mapboxsdk.maps.MapView
 import com.mapbox.mapboxsdk.maps.MapboxMap
 import com.mapbox.mapboxsdk.style.layers.LineLayer
@@ -30,7 +31,7 @@ import permissions.dispatcher.OnPermissionDenied
 import permissions.dispatcher.RuntimePermissions
 
 @RuntimePermissions
-class MapActivity : AppCompatActivity() {
+class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener {
 
     val explorerZoom = 14
 
@@ -38,6 +39,10 @@ class MapActivity : AppCompatActivity() {
 
     @BindView(R.id.mapView)
     lateinit var mapView: MapView
+    @BindView(R.id.explorerButton)
+    lateinit var explorerButton: ToggleButton
+    @BindView(R.id.ridesButton)
+    lateinit var ridesButton: ToggleButton
 
     lateinit var map: MapboxMap
     lateinit var preferences: SharedPreferences
@@ -50,15 +55,47 @@ class MapActivity : AppCompatActivity() {
         ButterKnife.bind(this)
         preferences = PreferenceManager.getDefaultSharedPreferences(this)
 
-        mapView = findViewById(R.id.mapView) as MapView
         mapView.onCreate(savedInstanceState)
-        mapView.getMapAsync { mapboxMap ->
-            map = mapboxMap
-//            map.cameraPosition = CameraPosition.Builder()
-//                    .target(LatLng(56.423040537284166, 44.65388874240455))
-//                    .zoom(6.0)
-//                    .build()
+        mapView.getMapAsync {
+            map = it
+
+            val explorerTiles = preferences
+                    .getStringSet(App.PREFERENCE_TILES, HashSet())
+                    .toList()
+
+            for (tile in explorerTiles) {
+                val xy = tile.split("-")
+                if (xy.size != 2) continue
+
+                val bbox = tile2boundingBox(xy[0].toInt(), xy[1].toInt(), explorerZoom)
+                val polygonOptions = PolygonOptions()
+                        .add(LatLng(bbox.north, bbox.west))
+                        .add(LatLng(bbox.north, bbox.east))
+                        .add(LatLng(bbox.south, bbox.east))
+                        .add(LatLng(bbox.south, bbox.west))
+                        .add(LatLng(bbox.north, bbox.west))
+                        .strokeColor(Color.parseColor("#00FF00"))
+                        .fillColor(Color.parseColor("#2000FF00"))
+                explorerPolygonOptions.add(polygonOptions)
+            }
+            val bounds = LatLngBounds.Builder()
+            explorerPolygonOptions.forEach { bounds.includes(it.polygon.points) }
+            map.cameraPosition = CameraUpdateFactory.newLatLngBounds(bounds.build(), 10)
+                    .getCameraPosition(map)
+
+            val geoJson = preferences.getString(App.PREFERENCE_RIDES_JSON, "")
+            if (!geoJson.isEmpty()) {
+                val gjSource = GeoJsonSource("rides", geoJson)
+                map.addSource(gjSource)
+                map.addLayer(LineLayer("rides_layer", "rides")
+                        .withProperties(
+                                PropertyFactory.lineColor(Color.RED),
+                                PropertyFactory.visibility(Property.NONE)
+                        ))
+            }
         }
+        explorerButton.setOnCheckedChangeListener(this)
+        ridesButton.setOnCheckedChangeListener(this)
     }
 
     override fun onStart() {
@@ -101,66 +138,59 @@ class MapActivity : AppCompatActivity() {
         MapActivityPermissionsDispatcher.onRequestPermissionsResult(this, requestCode, grantResults)
     }
 
-    @OnCheckedChanged(R.id.explorerButton)
-    fun onExplorerButtonClick(button: CompoundButton, checked: Boolean) {
-        if (explorerPolygonOptions.size == 0) {
-            val explorerTiles = preferences
-                    .getStringSet(App.PREFERENCE_TILES, HashSet())
-                    .toList()
-
-            if (explorerTiles.isEmpty()) {
-                button.isChecked = false
-                Toast.makeText(this, "No tiles!", Toast.LENGTH_SHORT).show()
-                return
+    override fun onCheckedChanged(button: CompoundButton?, isChecked: Boolean) {
+        when (button?.id) {
+            R.id.explorerButton -> {
+                if (explorerPolygonOptions.size == 0) {
+                    button.isChecked = false
+                    Toast.makeText(this, "No tiles!", Toast.LENGTH_SHORT).show()
+                    return
+                }
+                if (isChecked) {
+                    map.addPolygons(explorerPolygonOptions)
+                } else {
+                    explorerPolygonOptions.forEach { map.removePolygon(it.polygon) }
+                }
             }
+            R.id.ridesButton -> {
+                val layer = map.getLayer("rides_layer")
+                if (layer != null) {
+                    layer.setProperties(PropertyFactory.visibility(
+                            if (isChecked) Property.VISIBLE else Property.NONE))
+                } else {
+                    button.isChecked = false
+                    Toast.makeText(this, "No rides!", Toast.LENGTH_SHORT).show()
 
-            for (tile in explorerTiles) {
-                val xy = tile.split("-")
-                if (xy.size != 2) continue
-
-                val bbox = tile2boundingBox(xy[0].toInt(), xy[1].toInt(), explorerZoom)
-                val polygonOptions = PolygonOptions()
-                        .add(LatLng(bbox.north, bbox.west))
-                        .add(LatLng(bbox.north, bbox.east))
-                        .add(LatLng(bbox.south, bbox.east))
-                        .add(LatLng(bbox.south, bbox.west))
-                        .add(LatLng(bbox.north, bbox.west))
-                        .strokeColor(Color.parseColor("#00FF00"))
-                        .fillColor(Color.parseColor("#2000FF00"))
-                explorerPolygonOptions.add(polygonOptions)
-            }
-        }
-        if (checked) {
-            map.addPolygons(explorerPolygonOptions)
-        } else {
-            for (polygonOption in explorerPolygonOptions) {
-                map.removePolygon(polygonOption.polygon)
+                }
             }
         }
     }
 
-    @OnCheckedChanged(R.id.ridesButton)
-    fun onRidesButtonClick(button: CompoundButton, checked: Boolean) {
-        val layer = map.getLayer("rides_layer")
-        if (layer != null) {
-            layer.setProperties(PropertyFactory.visibility(if (checked) Property.VISIBLE else Property.NONE))
-        } else if (checked) {
-            val geoJson = preferences.getString(App.PREFERENCE_RIDES_JSON, "")
-
-            if (geoJson.isEmpty()) {
-                button.isChecked = false
-                Toast.makeText(this, "No rides!", Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            val gjSource = GeoJsonSource("rides", geoJson)
-            map.addSource(gjSource)
-            map.addLayer(LineLayer("rides_layer", "rides")
-                    .withProperties(
-                            PropertyFactory.lineColor(Color.RED)
-                    ))
-        }
-    }
+//    @OnCheckedChanged(R.id.explorerButton)
+//    fun onExplorerButtonClick(button: CompoundButton, checked: Boolean) {
+//        if (explorerPolygonOptions.size == 0) {
+//                button.isChecked = false
+//                Toast.makeText(this, "No tiles!", Toast.LENGTH_SHORT).show()
+//                return
+//        }
+//        if (checked) {
+//            map.addPolygons(explorerPolygonOptions)
+//        } else {
+//            explorerPolygonOptions.forEach { map.removePolygon(it.polygon) }
+//        }
+//    }
+//
+//    @OnCheckedChanged(R.id.ridesButton)
+//    fun onRidesButtonClick(button: CompoundButton, checked: Boolean) {
+//        val layer = map.getLayer("rides_layer")
+//        if (layer != null) {
+//            layer.setProperties(PropertyFactory.visibility(if (checked) Property.VISIBLE else Property.NONE))
+//        } else {
+//            button.isChecked = false
+//            Toast.makeText(this, "No rides!", Toast.LENGTH_SHORT).show()
+//
+//        }
+//    }
 
     @OnClick(R.id.myLocationButton)
     fun onLocationButtonClick(v: View) {
@@ -198,7 +228,7 @@ class MapActivity : AppCompatActivity() {
             map.isMyLocationEnabled = true
             map.setOnMyLocationChangeListener { location -> run {
                 setCameraPosition(location as Location)
-                map.setOnMyLocationChangeListener {  }
+                map.setOnMyLocationChangeListener(null)
             } }
 
         }

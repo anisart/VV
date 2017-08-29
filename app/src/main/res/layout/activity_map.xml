@@ -19,6 +19,7 @@
             android:layout_height="match_parent"
             app:mapbox_styleUrl="mapbox://styles/mapbox/outdoors-v10"
             app:mapbox_uiRotateGestures="false"
+            app:mapbox_uiTiltGestures="false"
             app:mapbox_uiZoomControls="true"
             app:mapbox_myLocation="true"/>
 
