@@ -63,25 +63,27 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
                     .getStringSet(App.PREFERENCE_TILES, HashSet())
                     .toList()
 
-            for (tile in explorerTiles) {
-                val xy = tile.split("-")
-                if (xy.size != 2) continue
-
-                val bbox = tile2boundingBox(xy[0].toInt(), xy[1].toInt(), explorerZoom)
-                val polygonOptions = PolygonOptions()
-                        .add(LatLng(bbox.north, bbox.west))
-                        .add(LatLng(bbox.north, bbox.east))
-                        .add(LatLng(bbox.south, bbox.east))
-                        .add(LatLng(bbox.south, bbox.west))
-                        .add(LatLng(bbox.north, bbox.west))
-                        .strokeColor(Color.parseColor("#00FF00"))
-                        .fillColor(Color.parseColor("#2000FF00"))
-                explorerPolygonOptions.add(polygonOptions)
+            explorerTiles
+                    .map { it.split("-") }
+                    .filter { it.size == 2 }
+                    .map { tile2boundingBox(it[0].toInt(), it[1].toInt(), explorerZoom) }
+                    .map {
+                        PolygonOptions()
+                                .add(LatLng(it.north, it.west))
+                                .add(LatLng(it.north, it.east))
+                                .add(LatLng(it.south, it.east))
+                                .add(LatLng(it.south, it.west))
+                                .add(LatLng(it.north, it.west))
+                                .strokeColor(Color.parseColor("#00FF00"))
+                                .fillColor(Color.parseColor("#2000FF00"))
+                    }
+                    .forEach { explorerPolygonOptions.add(it) }
+            if (!explorerPolygonOptions.isEmpty()) {
+                val bounds = LatLngBounds.Builder()
+                explorerPolygonOptions.forEach { bounds.includes(it.polygon.points) }
+                map.cameraPosition = CameraUpdateFactory.newLatLngBounds(bounds.build(), 10)
+                        .getCameraPosition(map)
             }
-            val bounds = LatLngBounds.Builder()
-            explorerPolygonOptions.forEach { bounds.includes(it.polygon.points) }
-            map.cameraPosition = CameraUpdateFactory.newLatLngBounds(bounds.build(), 10)
-                    .getCameraPosition(map)
 
             val geoJson = preferences.getString(App.PREFERENCE_RIDES_JSON, "")
             if (!geoJson.isEmpty()) {
@@ -93,9 +95,13 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
                                 PropertyFactory.visibility(Property.NONE)
                         ))
             }
+
+            System.err.println(savedInstanceState.toString())
+            explorerButton.setOnCheckedChangeListener(this)
+            ridesButton.setOnCheckedChangeListener(this)
+//            explorerButton.isChecked = explorerButton.isChecked
+//            ridesButton.isChecked = ridesButton.isChecked
         }
-        explorerButton.setOnCheckedChangeListener(this)
-        ridesButton.setOnCheckedChangeListener(this)
     }
 
     override fun onStart() {
@@ -197,16 +203,16 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
         MapActivityPermissionsDispatcher.getLastLocationWithCheck(this)
     }
 
-    fun tile2lon(x: Int, z: Int): Double {
+    private fun tile2lon(x: Int, z: Int): Double {
         return x / Math.pow(2.0, z.toDouble()) * 360.0 - 180
     }
 
-    fun tile2lat(y: Int, z: Int): Double {
+    private fun tile2lat(y: Int, z: Int): Double {
         val n = Math.PI - 2.0 * Math.PI * y.toDouble() / Math.pow(2.0, z.toDouble())
         return Math.toDegrees(Math.atan(Math.sinh(n)))
     }
 
-    fun tile2boundingBox(x: Int, y: Int, zoom: Int): BBox {
+    private fun tile2boundingBox(x: Int, y: Int, zoom: Int): BBox {
         val north = tile2lat(y, zoom)
         val south = tile2lat(y + 1, zoom)
         val west = tile2lon(x, zoom)
@@ -214,7 +220,7 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
         return BBox(north, south, west, east)
     }
 
-    fun setCameraPosition(location: Location) {
+    private fun setCameraPosition(location: Location) {
         map.animateCamera(CameraUpdateFactory.newLatLngZoom(
                 LatLng(location.getLatitude(), location.getLongitude()), explorerZoom.toDouble()))
     }
