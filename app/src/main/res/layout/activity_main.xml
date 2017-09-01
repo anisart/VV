@@ -7,6 +7,13 @@
     android:orientation="vertical"
     tools:context="ru.anisart.vv.MainActivity">
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="8dp"
+        android:layout_marginBottom="0dp"
+        android:text="If you don't select OsmAnd folder the app will create only tiles for internal map viewer."/>
+
     <com.dd.processbutton.iml.ActionProcessButton
         style="@style/vv_button"
         android:id="@+id/osmandBtn"

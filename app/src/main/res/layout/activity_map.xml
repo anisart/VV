@@ -31,6 +31,14 @@
             android:src="@android:drawable/ic_menu_mylocation"
             app:layout_anchor="@id/mapView"
             app:layout_anchorGravity="bottom|right|end"/>
+
+        <TextView
+            android:id="@+id/debug"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:layout_anchor="@id/mapView"
+            app:layout_anchorGravity="top|left|start"/>
+
     </android.support.design.widget.CoordinatorLayout>
 
     <LinearLayout
@@ -53,6 +61,14 @@
             android:checked="false"
             android:textOn="@string/btn_label_rides"
             android:textOff="@string/btn_label_rides"/>
+
+        <ToggleButton
+            android:id="@+id/gridButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="false"
+            android:textOn="Grid"
+            android:textOff="Grid"/>
 
     </LinearLayout>
 

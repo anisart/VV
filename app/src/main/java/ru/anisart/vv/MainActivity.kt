@@ -55,11 +55,11 @@ class MainActivity : AppCompatActivity() {
         WebView.setWebContentsDebuggingEnabled(true)
         webView.settings.javaScriptEnabled = true
         webView.settings.userAgentString = "Mozilla/5.0 Google"
-        webView.setWebChromeClient(object : WebChromeClient() {
+        webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView, progress: Int) {
                 progressBar.progress = progress
             }
-        })
+        }
         webView.addJavascriptInterface(this, "JSInterface")
         recreateBtn.setMode(ActionProcessButton.Mode.PROGRESS)
     }
@@ -105,12 +105,12 @@ class MainActivity : AppCompatActivity() {
     @OnClick(R.id.recreateBtn)
     fun onRecleateButtonClick(v: View) {
         osmandFolder = preferences.getString(DiskUtil.SC_PREFERENCE_KEY, "")
-        if (osmandFolder.isEmpty()) {
-            Toast.makeText(this, "You need select OsmAnd data folder!", Toast.LENGTH_SHORT).show()
-            return
-        } else {
+//        if (osmandFolder.isEmpty()) {
+//            Toast.makeText(this, "You need select OsmAnd data folder!", Toast.LENGTH_SHORT).show()
+//            return
+//        } else {
             MainActivityPermissionsDispatcher.setupWebviewForExplorerWithCheck(this)
-        }
+//        }
 //        MainActivityPermissionsDispatcher.mockRecteateTilesAndRidesWithCheck(this)
     }
 
@@ -132,11 +132,16 @@ class MainActivity : AppCompatActivity() {
             explorerTiles.add(Pair(tile.substringBefore('-', "-1"), tile.substringAfter('-', "-1")))
         }
 
-        createTiles()
+        if (!osmandFolder.isEmpty()) {
+            createTiles()
+        }
     }
 
     @JavascriptInterface
     fun setAllRidesGpx(gpx: String) {
+        if (osmandFolder.isEmpty()) {
+            return
+        }
         Observable.just(gpx)
                 .map { s -> createGpxFile(s) }
                 .subscribeOn(Schedulers.io())
@@ -165,7 +170,7 @@ class MainActivity : AppCompatActivity() {
                 }})
     }
 
-    fun createDirs(): Boolean {
+    private fun createDirs(): Boolean {
         val explorerDir = File(osmandFolder, explorerDirPath)
         if (!explorerDir.exists()) {
             if (!explorerDir.mkdirs()) {
@@ -178,7 +183,7 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    fun createTiles() {
+    private fun createTiles() {
         if (!createDirs()) return
         var completeCount = 0
         runOnUiThread { recreateBtn.progress = 0 }
@@ -200,7 +205,7 @@ class MainActivity : AppCompatActivity() {
                 }})
     }
 
-    fun copyAssetTFile(assetName: String, file: File) {
+    private fun copyAssetTFile(assetName: String, file: File) {
         file.parentFile.mkdirs()
         val inStream = assets.open(assetName)
         val outStream = FileOutputStream(file)
@@ -210,7 +215,7 @@ class MainActivity : AppCompatActivity() {
         outStream.close()
     }
 
-    fun copyFile(inStream: InputStream, out: OutputStream) {
+    private fun copyFile(inStream: InputStream, out: OutputStream) {
         val buffer = ByteArray(1024)
         var read = inStream.read(buffer)
         while (read != -1) {
@@ -219,7 +224,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun createGpxFile(gpx: String) {
+    private fun createGpxFile(gpx: String) {
         val file = File(osmandFolder, allRidesFileName)
         file.parentFile.mkdirs()
         file.createNewFile()
@@ -229,7 +234,7 @@ class MainActivity : AppCompatActivity() {
         fileWriter.close()
     }
 
-    fun saveGeoJson(json: String) {
+    private fun saveGeoJson(json: String) {
         preferences.edit()
                 .putString(App.PREFERENCE_RIDES_JSON, json)
                 .apply()
@@ -255,7 +260,7 @@ class MainActivity : AppCompatActivity() {
 
     @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
     fun setupWebviewForExplorer() {
-        webView.setWebViewClient(object : WebViewClient() {
+        webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                 view?.loadUrl(url)
                 return true
@@ -280,12 +285,12 @@ class MainActivity : AppCompatActivity() {
                         "window.JSInterface.setExplorerTiles(Object.keys(window.explorerTiles)); " +
                         "document.getElementById('viewMapCheckBox').click();")
             }
-        })
+        }
         webView.loadUrl("https://veloviewer.com/activities")
     }
 
     fun setupWebviewForUpdate() {
-        webView.setWebViewClient(object : WebViewClient() {
+        webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                 view?.loadUrl(url)
                 return true
@@ -300,7 +305,7 @@ class MainActivity : AppCompatActivity() {
                 view?.loadUrl("javascript: " +
                         "document.getElementById('GetNewActivities').click();")
             }
-        })
+        }
         webView.loadUrl("https://veloviewer.com/update")
     }
 

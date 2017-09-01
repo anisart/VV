@@ -9,13 +9,14 @@ import android.os.Bundle
 import android.preference.PreferenceManager
 import android.view.View
 import android.widget.CompoundButton
+import android.widget.TextView
 import android.widget.Toast
 import android.widget.ToggleButton
 import butterknife.BindView
 import butterknife.ButterKnife
-import butterknife.OnCheckedChanged
 import butterknife.OnClick
 import com.mapbox.mapboxsdk.annotations.PolygonOptions
+import com.mapbox.mapboxsdk.annotations.PolylineOptions
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.geometry.LatLngBounds
@@ -29,11 +30,13 @@ import permissions.dispatcher.NeedsPermission
 import permissions.dispatcher.OnNeverAskAgain
 import permissions.dispatcher.OnPermissionDenied
 import permissions.dispatcher.RuntimePermissions
+import java.util.*
+import kotlin.collections.ArrayList
 
 @RuntimePermissions
 class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener {
 
-    val explorerZoom = 14
+    private val explorerZoom = 14
 
     class BBox(val north: Double, val south: Double, val west: Double, val east: Double)
 
@@ -43,11 +46,16 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
     lateinit var explorerButton: ToggleButton
     @BindView(R.id.ridesButton)
     lateinit var ridesButton: ToggleButton
+    @BindView(R.id.gridButton)
+    lateinit var gridButton: ToggleButton
+    @BindView(R.id.debug)
+    lateinit var debugView: TextView
 
     lateinit var map: MapboxMap
     lateinit var preferences: SharedPreferences
 
     var explorerPolygonOptions = ArrayList<PolygonOptions>()
+    var gridPolylineOptions = ArrayList<PolylineOptions>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,11 +104,34 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
                         ))
             }
 
-            System.err.println(savedInstanceState.toString())
+            if (savedInstanceState != null) {
+                explorerButton.isChecked = false
+                ridesButton.isChecked = false
+            }
             explorerButton.setOnCheckedChangeListener(this)
             ridesButton.setOnCheckedChangeListener(this)
-//            explorerButton.isChecked = explorerButton.isChecked
-//            ridesButton.isChecked = ridesButton.isChecked
+            gridButton.setOnCheckedChangeListener(this)
+
+            map.setOnCameraIdleListener({
+                if (BuildConfig.DEBUG) {
+                    debugView.text = "z = %.2f, lat = %.2f, lon = %.2f".format(
+                            Locale.US,
+                            map.cameraPosition.zoom,
+                            map.cameraPosition.target.latitude,
+                            map.cameraPosition.target.longitude)
+                }
+
+//                if (explorerButton.isChecked) {
+//                    val bounds = map.projection.visibleRegion.latLngBounds
+//                    for (option in explorerPolygonOptions) {
+//                        for (point in option.polygon.points) {
+//                            if (bounds.contains(point)) {
+//                                map.addPolygon(option)
+//                            }
+//                        }
+//                    }
+//                }
+            })
         }
     }
 
@@ -169,34 +200,40 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
 
                 }
             }
+            R.id.gridButton -> {
+                if (isChecked) {
+                    if (map.cameraPosition.zoom < 10) {
+                        Toast.makeText(this, "Zoom is too small!", Toast.LENGTH_SHORT).show()
+                        gridButton.isChecked = false
+                        return
+                    }
+
+                    val bounds = map.projection.visibleRegion.latLngBounds
+                    val x0 = lon2tile(bounds.lonWest, explorerZoom)
+                    val x1 = lon2tile(bounds.lonEast, explorerZoom)
+                    val y0 = lat2tile(bounds.latNorth, explorerZoom)
+                    val y1 = lat2tile(bounds.latSouth, explorerZoom)
+
+                    gridPolylineOptions.clear()
+                    for (x in x0..x1) {
+                        for (y in y0..y1) {
+                            val bbox = tile2boundingBox(x, y, explorerZoom)
+                            val polylineOptions = PolylineOptions()
+                                    .add(LatLng(bbox.south, bbox.west))
+                                    .add(LatLng(bbox.north, bbox.west))
+                                    .add(LatLng(bbox.north, bbox.east))
+                                    .color(Color.BLACK)
+                                    .width(1f)
+                            gridPolylineOptions.add(polylineOptions)
+                        }
+                    }
+                    map.addPolylines(gridPolylineOptions)
+                } else {
+                    gridPolylineOptions.forEach { map.removePolyline(it.polyline) }
+                }
+            }
         }
     }
-
-//    @OnCheckedChanged(R.id.explorerButton)
-//    fun onExplorerButtonClick(button: CompoundButton, checked: Boolean) {
-//        if (explorerPolygonOptions.size == 0) {
-//                button.isChecked = false
-//                Toast.makeText(this, "No tiles!", Toast.LENGTH_SHORT).show()
-//                return
-//        }
-//        if (checked) {
-//            map.addPolygons(explorerPolygonOptions)
-//        } else {
-//            explorerPolygonOptions.forEach { map.removePolygon(it.polygon) }
-//        }
-//    }
-//
-//    @OnCheckedChanged(R.id.ridesButton)
-//    fun onRidesButtonClick(button: CompoundButton, checked: Boolean) {
-//        val layer = map.getLayer("rides_layer")
-//        if (layer != null) {
-//            layer.setProperties(PropertyFactory.visibility(if (checked) Property.VISIBLE else Property.NONE))
-//        } else {
-//            button.isChecked = false
-//            Toast.makeText(this, "No rides!", Toast.LENGTH_SHORT).show()
-//
-//        }
-//    }
 
     @OnClick(R.id.myLocationButton)
     fun onLocationButtonClick(v: View) {
@@ -220,9 +257,18 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
         return BBox(north, south, west, east)
     }
 
+    private fun lon2tile(lon: Double, zoom: Int): Int {
+        return Math.floor((lon + 180) / 360 * Math.pow(2.0, zoom.toDouble())).toInt()
+    }
+
+    private fun lat2tile(lat: Double, zoom: Int): Int {
+        return Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI)
+                / 2 * Math.pow(2.0, zoom.toDouble())).toInt()
+    }
+
     private fun setCameraPosition(location: Location) {
         map.animateCamera(CameraUpdateFactory.newLatLngZoom(
-                LatLng(location.getLatitude(), location.getLongitude()), explorerZoom.toDouble()))
+                LatLng(location.latitude, location.longitude), explorerZoom.toDouble()))
     }
 
     @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
