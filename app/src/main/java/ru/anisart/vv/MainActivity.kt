@@ -138,6 +138,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     @JavascriptInterface
+    fun setClusterTiles(tiles: Array<String>?) {
+        if (tiles == null) return
+
+        preferences.edit()
+                .putStringSet(App.PREFERENCE_CLUSTER_TILES, tiles.toSet())
+                .apply()
+    }
+
+    @JavascriptInterface
     fun setAllRidesGpx(gpx: String) {
         if (osmandFolder.isEmpty()) {
             return
@@ -283,13 +292,14 @@ class MainActivity : AppCompatActivity() {
                         "var geojson = new OpenLayers.Format.GeoJSON({ 'internalProjection': toProjection, 'externalProjection': fromProjection }); " +
                         "window.JSInterface.setAllRidesJson(geojson.write(features)); " +
                         "window.JSInterface.setExplorerTiles(Object.keys(window.explorerTiles)); " +
+                        "window.JSInterface.setClusterTiles(Object.keys(window.maxClump)); " +
                         "document.getElementById('viewMapCheckBox').click();")
             }
         }
-        webView.loadUrl("https://veloviewer.com/activities")
+        webView.loadUrl("https://veloviewer.com/athlete/906837/activities")
     }
 
-    fun setupWebviewForUpdate() {
+    private fun setupWebviewForUpdate() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                 view?.loadUrl(url)

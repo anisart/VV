@@ -22,16 +22,24 @@ import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import com.mapbox.mapboxsdk.maps.MapView
 import com.mapbox.mapboxsdk.maps.MapboxMap
+import com.mapbox.mapboxsdk.style.functions.Function
+import com.mapbox.mapboxsdk.style.functions.stops.IdentityStops
+import com.mapbox.mapboxsdk.style.layers.FillLayer
 import com.mapbox.mapboxsdk.style.layers.LineLayer
 import com.mapbox.mapboxsdk.style.layers.Property
 import com.mapbox.mapboxsdk.style.layers.PropertyFactory
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
+import com.mapbox.services.commons.geojson.Feature
+import com.mapbox.services.commons.geojson.FeatureCollection
+import com.mapbox.services.commons.geojson.GeometryCollection
+import com.mapbox.services.commons.geojson.Polygon
 import permissions.dispatcher.NeedsPermission
 import permissions.dispatcher.OnNeverAskAgain
 import permissions.dispatcher.OnPermissionDenied
 import permissions.dispatcher.RuntimePermissions
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.collections.HashSet
 
 @RuntimePermissions
 class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener {
@@ -39,6 +47,7 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
     private val explorerZoom = 14
 
     class BBox(val north: Double, val south: Double, val west: Double, val east: Double)
+    class Tile(val x: Int, val y: Int, val z: Int)
 
     @BindView(R.id.mapView)
     lateinit var mapView: MapView
@@ -70,22 +79,51 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
             val explorerTiles = preferences
                     .getStringSet(App.PREFERENCE_TILES, HashSet())
                     .toList()
+            val clusterTiles = preferences
+                    .getStringSet(App.PREFERENCE_CLUSTER_TILES, HashSet())
 
-            explorerTiles
-                    .map { it.split("-") }
-                    .filter { it.size == 2 }
-                    .map { tile2boundingBox(it[0].toInt(), it[1].toInt(), explorerZoom) }
-                    .map {
-                        PolygonOptions()
-                                .add(LatLng(it.north, it.west))
-                                .add(LatLng(it.north, it.east))
-                                .add(LatLng(it.south, it.east))
-                                .add(LatLng(it.south, it.west))
-                                .add(LatLng(it.north, it.west))
-                                .strokeColor(Color.parseColor("#00FF00"))
-                                .fillColor(Color.parseColor("#2000FF00"))
-                    }
-                    .forEach { explorerPolygonOptions.add(it) }
+            val features = ArrayList<Feature>()
+            for ((index, tile) in explorerTiles.withIndex()) {
+                val xy = tile.split("-")
+                if (xy.size != 2) {
+                    continue
+                }
+                val bbox = tile2boundingBox(xy[0].toInt(), xy[1].toInt(), explorerZoom)
+                val polygonOption = PolygonOptions()
+                        .add(LatLng(bbox.north, bbox.west))
+                        .add(LatLng(bbox.north, bbox.east))
+                        .add(LatLng(bbox.south, bbox.east))
+                        .add(LatLng(bbox.south, bbox.west))
+                        .add(LatLng(bbox.north, bbox.west))
+
+                val feature = Feature.fromGeometry(Polygon.fromCoordinates(
+                        arrayOf(
+                                arrayOf(
+                                        doubleArrayOf(bbox.west, bbox.north),
+                                        doubleArrayOf(bbox.east, bbox.north),
+                                        doubleArrayOf(bbox.east, bbox.south),
+                                        doubleArrayOf(bbox.west, bbox.south),
+                                        doubleArrayOf(bbox.west, bbox.north)))))
+
+                if (clusterTiles.contains(tile)) {
+                    polygonOption
+                            .strokeColor(Color.parseColor("#0000FF"))
+                            .fillColor(Color.parseColor("#100000FF"))
+                    feature.addStringProperty("stroke", "#000099")
+                    feature.addStringProperty("fill", "#0000FF")
+                } else {
+                    polygonOption
+                            .strokeColor(Color.parseColor("#00FF00"))
+                            .fillColor(Color.parseColor("#1000FF00"))
+                    feature.addStringProperty("stroke", "#009900")
+                    feature.addStringProperty("fill", "#00FF00")
+                }
+                feature.addNumberProperty("fill-opacity", 0.3f)
+
+                explorerPolygonOptions.add(polygonOption)
+                features.add(feature)
+            }
+
             if (!explorerPolygonOptions.isEmpty()) {
                 val bounds = LatLngBounds.Builder()
                 explorerPolygonOptions.forEach { bounds.includes(it.polygon.points) }
@@ -104,6 +142,17 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
                         ))
             }
 
+            val featureCollection = FeatureCollection.fromFeatures(features)
+            val explorerSource = GeoJsonSource("explorer", featureCollection)
+            map.addSource(explorerSource)
+            map.addLayer(FillLayer("explorer_layer", "explorer")
+                    .withProperties(
+                            PropertyFactory.fillOutlineColor(Function.property("stroke", IdentityStops<String>())),
+                            PropertyFactory.fillColor(Function.property("fill", IdentityStops<String>())),
+                            PropertyFactory.fillOpacity(Function.property("fill-opacity", IdentityStops<Float>())),
+                            PropertyFactory.visibility(Property.NONE)
+                    ))
+
             if (savedInstanceState != null) {
                 explorerButton.isChecked = false
                 ridesButton.isChecked = false
@@ -120,17 +169,6 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
                             map.cameraPosition.target.latitude,
                             map.cameraPosition.target.longitude)
                 }
-
-//                if (explorerButton.isChecked) {
-//                    val bounds = map.projection.visibleRegion.latLngBounds
-//                    for (option in explorerPolygonOptions) {
-//                        for (point in option.polygon.points) {
-//                            if (bounds.contains(point)) {
-//                                map.addPolygon(option)
-//                            }
-//                        }
-//                    }
-//                }
             })
         }
     }
@@ -201,7 +239,7 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
                 }
             }
             R.id.gridButton -> {
-                if (isChecked) {
+                /*if (isChecked) {
                     if (map.cameraPosition.zoom < 10) {
                         Toast.makeText(this, "Zoom is too small!", Toast.LENGTH_SHORT).show()
                         gridButton.isChecked = false
@@ -228,8 +266,18 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
                         }
                     }
                     map.addPolylines(gridPolylineOptions)
+
                 } else {
                     gridPolylineOptions.forEach { map.removePolyline(it.polyline) }
+                }*/
+                val layer = map.getLayer("explorer_layer")
+                if (layer != null) {
+                    layer.setProperties(PropertyFactory.visibility(
+                            if (isChecked) Property.VISIBLE else Property.NONE))
+                } else {
+                    button.isChecked = false
+                    Toast.makeText(this, "No tiles!", Toast.LENGTH_SHORT).show()
+
                 }
             }
         }

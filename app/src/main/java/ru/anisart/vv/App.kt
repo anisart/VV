@@ -7,6 +7,7 @@ class App : Application() {
 
     companion object {
         val PREFERENCE_TILES = "explorer_tiles"
+        val PREFERENCE_CLUSTER_TILES = "cluster_tiles"
         val PREFERENCE_RIDES_JSON = "rides_json"
     }
 
