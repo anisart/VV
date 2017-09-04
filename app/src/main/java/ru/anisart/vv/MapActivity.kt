@@ -15,8 +15,6 @@ import android.widget.ToggleButton
 import butterknife.BindView
 import butterknife.ButterKnife
 import butterknife.OnClick
-import com.mapbox.mapboxsdk.annotations.PolygonOptions
-import com.mapbox.mapboxsdk.annotations.PolylineOptions
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.geometry.LatLngBounds
@@ -29,10 +27,7 @@ import com.mapbox.mapboxsdk.style.layers.LineLayer
 import com.mapbox.mapboxsdk.style.layers.Property
 import com.mapbox.mapboxsdk.style.layers.PropertyFactory
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
-import com.mapbox.services.commons.geojson.Feature
-import com.mapbox.services.commons.geojson.FeatureCollection
-import com.mapbox.services.commons.geojson.GeometryCollection
-import com.mapbox.services.commons.geojson.Polygon
+import com.mapbox.services.commons.geojson.*
 import permissions.dispatcher.NeedsPermission
 import permissions.dispatcher.OnNeverAskAgain
 import permissions.dispatcher.OnPermissionDenied
@@ -46,8 +41,14 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
 
     private val explorerZoom = 14
 
+    private val explorerSource = "explorer_source"
+    private val ridesSource = "rides_source"
+    private val gridSource = "grid_source"
+    private val explorerLayer = "explorer_layer"
+    private val ridesLayer = "rides_layer"
+    private val gridLayer = "grid_layer"
+
     class BBox(val north: Double, val south: Double, val west: Double, val east: Double)
-    class Tile(val x: Int, val y: Int, val z: Int)
 
     @BindView(R.id.mapView)
     lateinit var mapView: MapView
@@ -62,9 +63,6 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
 
     lateinit var map: MapboxMap
     lateinit var preferences: SharedPreferences
-
-    var explorerPolygonOptions = ArrayList<PolygonOptions>()
-    var gridPolylineOptions = ArrayList<PolylineOptions>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,19 +80,14 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
             val clusterTiles = preferences
                     .getStringSet(App.PREFERENCE_CLUSTER_TILES, HashSet())
 
+            val bounds = LatLngBounds.Builder()
             val features = ArrayList<Feature>()
-            for ((index, tile) in explorerTiles.withIndex()) {
+            for (tile in explorerTiles) {
                 val xy = tile.split("-")
                 if (xy.size != 2) {
                     continue
                 }
                 val bbox = tile2boundingBox(xy[0].toInt(), xy[1].toInt(), explorerZoom)
-                val polygonOption = PolygonOptions()
-                        .add(LatLng(bbox.north, bbox.west))
-                        .add(LatLng(bbox.north, bbox.east))
-                        .add(LatLng(bbox.south, bbox.east))
-                        .add(LatLng(bbox.south, bbox.west))
-                        .add(LatLng(bbox.north, bbox.west))
 
                 val feature = Feature.fromGeometry(Polygon.fromCoordinates(
                         arrayOf(
@@ -104,72 +97,72 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
                                         doubleArrayOf(bbox.east, bbox.south),
                                         doubleArrayOf(bbox.west, bbox.south),
                                         doubleArrayOf(bbox.west, bbox.north)))))
+                bounds.includes(arrayListOf(
+                        LatLng(bbox.north, bbox.west),
+                        LatLng(bbox.north, bbox.east),
+                        LatLng(bbox.south, bbox.east),
+                        LatLng(bbox.south, bbox.west)))
 
                 if (clusterTiles.contains(tile)) {
-                    polygonOption
-                            .strokeColor(Color.parseColor("#0000FF"))
-                            .fillColor(Color.parseColor("#100000FF"))
                     feature.addStringProperty("stroke", "#000099")
                     feature.addStringProperty("fill", "#0000FF")
                 } else {
-                    polygonOption
-                            .strokeColor(Color.parseColor("#00FF00"))
-                            .fillColor(Color.parseColor("#1000FF00"))
                     feature.addStringProperty("stroke", "#009900")
                     feature.addStringProperty("fill", "#00FF00")
                 }
                 feature.addNumberProperty("fill-opacity", 0.3f)
-
-                explorerPolygonOptions.add(polygonOption)
                 features.add(feature)
             }
 
-            if (!explorerPolygonOptions.isEmpty()) {
-                val bounds = LatLngBounds.Builder()
-                explorerPolygonOptions.forEach { bounds.includes(it.polygon.points) }
-                map.cameraPosition = CameraUpdateFactory.newLatLngBounds(bounds.build(), 10)
-                        .getCameraPosition(map)
-            }
-
             val geoJson = preferences.getString(App.PREFERENCE_RIDES_JSON, "")
-            if (!geoJson.isEmpty()) {
-                val gjSource = GeoJsonSource("rides", geoJson)
-                map.addSource(gjSource)
-                map.addLayer(LineLayer("rides_layer", "rides")
+            if (geoJson.isNotEmpty()) {
+                map.addSource(GeoJsonSource(ridesSource, geoJson))
+                map.addLayer(LineLayer(ridesLayer, ridesSource)
                         .withProperties(
                                 PropertyFactory.lineColor(Color.RED),
                                 PropertyFactory.visibility(Property.NONE)
                         ))
             }
 
-            val featureCollection = FeatureCollection.fromFeatures(features)
-            val explorerSource = GeoJsonSource("explorer", featureCollection)
-            map.addSource(explorerSource)
-            map.addLayer(FillLayer("explorer_layer", "explorer")
-                    .withProperties(
-                            PropertyFactory.fillOutlineColor(Function.property("stroke", IdentityStops<String>())),
-                            PropertyFactory.fillColor(Function.property("fill", IdentityStops<String>())),
-                            PropertyFactory.fillOpacity(Function.property("fill-opacity", IdentityStops<Float>())),
-                            PropertyFactory.visibility(Property.NONE)
-                    ))
+            if (features.isNotEmpty()) {
+                val featureCollection = FeatureCollection.fromFeatures(features)
+                map.addSource(GeoJsonSource(explorerSource, featureCollection))
+                map.addLayer(FillLayer(explorerLayer, explorerSource)
+                        .withProperties(
+                                PropertyFactory.fillOutlineColor(Function.property("stroke", IdentityStops<String>())),
+                                PropertyFactory.fillColor(Function.property("fill", IdentityStops<String>())),
+                                PropertyFactory.fillOpacity(Function.property("fill-opacity", IdentityStops<Float>())),
+                                PropertyFactory.visibility(Property.NONE)
+                        ))
+                map.cameraPosition = CameraUpdateFactory.newLatLngBounds(bounds.build(), 10)
+                        .getCameraPosition(map)
+            }
+
+            map.addSource(GeoJsonSource(gridSource))
+            val gridLayer = LineLayer(gridLayer, gridSource)
+                    .withProperties(PropertyFactory.visibility(Property.NONE))
+            gridLayer.minZoom = 10f
+            map.addLayer(gridLayer)
 
             if (savedInstanceState != null) {
                 explorerButton.isChecked = false
                 ridesButton.isChecked = false
+                gridButton.isChecked = false
             }
             explorerButton.setOnCheckedChangeListener(this)
             ridesButton.setOnCheckedChangeListener(this)
             gridButton.setOnCheckedChangeListener(this)
 
-            map.setOnCameraIdleListener({
-                if (BuildConfig.DEBUG) {
-                    debugView.text = "z = %.2f, lat = %.2f, lon = %.2f".format(
-                            Locale.US,
-                            map.cameraPosition.zoom,
-                            map.cameraPosition.target.latitude,
-                            map.cameraPosition.target.longitude)
+            mapView.addOnMapChangedListener {
+                if (it in arrayOf(MapView.REGION_DID_CHANGE, MapView.REGION_DID_CHANGE_ANIMATED)) {
+                    if (BuildConfig.DEBUG) {
+                        debugInfo()
+                    }
+                    if (gridButton.isChecked) {
+                        calculateGrid()
+                    }
                 }
-            })
+            }
         }
     }
 
@@ -216,19 +209,18 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
     override fun onCheckedChanged(button: CompoundButton?, isChecked: Boolean) {
         when (button?.id) {
             R.id.explorerButton -> {
-                if (explorerPolygonOptions.size == 0) {
+                val layer = map.getLayer(explorerLayer)
+                if (layer != null) {
+                    layer.setProperties(PropertyFactory.visibility(
+                            if (isChecked) Property.VISIBLE else Property.NONE))
+                } else {
                     button.isChecked = false
                     Toast.makeText(this, "No tiles!", Toast.LENGTH_SHORT).show()
-                    return
-                }
-                if (isChecked) {
-                    map.addPolygons(explorerPolygonOptions)
-                } else {
-                    explorerPolygonOptions.forEach { map.removePolygon(it.polygon) }
+
                 }
             }
             R.id.ridesButton -> {
-                val layer = map.getLayer("rides_layer")
+                val layer = map.getLayer(ridesLayer)
                 if (layer != null) {
                     layer.setProperties(PropertyFactory.visibility(
                             if (isChecked) Property.VISIBLE else Property.NONE))
@@ -239,44 +231,14 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
                 }
             }
             R.id.gridButton -> {
-                /*if (isChecked) {
-                    if (map.cameraPosition.zoom < 10) {
-                        Toast.makeText(this, "Zoom is too small!", Toast.LENGTH_SHORT).show()
-                        gridButton.isChecked = false
-                        return
-                    }
-
-                    val bounds = map.projection.visibleRegion.latLngBounds
-                    val x0 = lon2tile(bounds.lonWest, explorerZoom)
-                    val x1 = lon2tile(bounds.lonEast, explorerZoom)
-                    val y0 = lat2tile(bounds.latNorth, explorerZoom)
-                    val y1 = lat2tile(bounds.latSouth, explorerZoom)
-
-                    gridPolylineOptions.clear()
-                    for (x in x0..x1) {
-                        for (y in y0..y1) {
-                            val bbox = tile2boundingBox(x, y, explorerZoom)
-                            val polylineOptions = PolylineOptions()
-                                    .add(LatLng(bbox.south, bbox.west))
-                                    .add(LatLng(bbox.north, bbox.west))
-                                    .add(LatLng(bbox.north, bbox.east))
-                                    .color(Color.BLACK)
-                                    .width(1f)
-                            gridPolylineOptions.add(polylineOptions)
-                        }
-                    }
-                    map.addPolylines(gridPolylineOptions)
-
-                } else {
-                    gridPolylineOptions.forEach { map.removePolyline(it.polyline) }
-                }*/
-                val layer = map.getLayer("explorer_layer")
+                val layer = map.getLayer(gridLayer)
                 if (layer != null) {
                     layer.setProperties(PropertyFactory.visibility(
                             if (isChecked) Property.VISIBLE else Property.NONE))
+                    if (isChecked) calculateGrid()
                 } else {
                     button.isChecked = false
-                    Toast.makeText(this, "No tiles!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "No grid!", Toast.LENGTH_SHORT).show()
 
                 }
             }
@@ -321,7 +283,6 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
 
     @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun getLastLocation() {
-        System.err.println("getLastLocation ${map.myLocation}")
         if (map.myLocation != null) {
             setCameraPosition(map.myLocation as Location)
         } else {
@@ -342,5 +303,43 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
     @OnNeverAskAgain(Manifest.permission.ACCESS_FINE_LOCATION)
     fun onLocationNeverAskAgain() {
         Toast.makeText(this, "Check permissions for app in System Settings!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun debugInfo() {
+        debugView.text = "z = %.2f, lat = %.2f, lon = %.2f".format(
+                Locale.US,
+                map.cameraPosition.zoom,
+                map.cameraPosition.target.latitude,
+                map.cameraPosition.target.longitude)
+    }
+
+    private fun calculateGrid() {
+        map.getLayer(gridLayer) ?: return
+        if (map.cameraPosition.zoom < 9.9) return
+
+        val bounds = map.projection.visibleRegion.latLngBounds
+        val x0 = lon2tile(bounds.lonWest, explorerZoom)
+        val x1 = lon2tile(bounds.lonEast, explorerZoom)
+        val y0 = lat2tile(bounds.latNorth, explorerZoom)
+        val y1 = lat2tile(bounds.latSouth, explorerZoom)
+        val gridLines = ArrayList<Feature>()
+        for (x in x0-1..x1+1) {
+            for (y in y0-1..y1+1) {
+                val bbox = tile2boundingBox(x, y, explorerZoom)
+                val feature = Feature.fromGeometry(LineString.fromCoordinates(
+                        arrayOf(
+                                doubleArrayOf(bbox.west, bbox.south),
+                                doubleArrayOf(bbox.west, bbox.north),
+                                doubleArrayOf(bbox.east, bbox.north)
+                        )))
+                gridLines.add(feature)
+            }
+        }
+        val gridCollection = FeatureCollection.fromFeatures(gridLines)
+        (map.getSource(gridSource) as GeoJsonSource).setGeoJson(gridCollection)
+    }
+
+    override fun onBackPressed() {
+        Toast.makeText(this, "Back!", Toast.LENGTH_SHORT).show()
     }
 }

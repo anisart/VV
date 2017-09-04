@@ -90,7 +90,7 @@ dependencies {
         transitive = true
         exclude group: 'com.android.support'
     }
-//    compile 'com.mapbox.mapboxsdk:mapbox-android-services:2.1.3@aar'
+//    compile 'com.mapbox.mapboxsdk:mapbox-android-services:2.2.3@aar'
 //    compile 'com.esri.geometry:esri-geometry-api:1.2.1'
     compile 'com.squareup.retrofit2:retrofit:2.3.0'
     compile 'com.squareup.retrofit2:converter-gson:2.3.0'

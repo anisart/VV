@@ -144,6 +144,10 @@ class MainActivity : AppCompatActivity() {
         preferences.edit()
                 .putStringSet(App.PREFERENCE_CLUSTER_TILES, tiles.toSet())
                 .apply()
+
+        ///////////////////////////////
+        ///////////////////////////////
+        startActivity(Intent(this, MapActivity::class.java))
     }
 
     @JavascriptInterface
@@ -285,6 +289,7 @@ class MainActivity : AppCompatActivity() {
                 view?.loadUrl("javascript: " +
                         "document.getElementById('viewMapCheckBox').click(); " +
                         "document.getElementById('showExplorerCheckBox').click(); " +
+                        "document.getElementById('viewMapCheckBox').click(); " +
                         "var features = []; " +
                         "liveData.forEach( function(d, i) { if (d.mapFeature != null) features.push(d.mapFeature); } ); " +
                         "var gpx = new OpenLayers.Format.GPX({ 'internalProjection': toProjection, 'externalProjection': fromProjection }); " +
@@ -292,11 +297,10 @@ class MainActivity : AppCompatActivity() {
                         "var geojson = new OpenLayers.Format.GeoJSON({ 'internalProjection': toProjection, 'externalProjection': fromProjection }); " +
                         "window.JSInterface.setAllRidesJson(geojson.write(features)); " +
                         "window.JSInterface.setExplorerTiles(Object.keys(window.explorerTiles)); " +
-                        "window.JSInterface.setClusterTiles(Object.keys(window.maxClump)); " +
-                        "document.getElementById('viewMapCheckBox').click();")
+                        "window.JSInterface.setClusterTiles(Object.keys(window.maxClump));")
             }
         }
-        webView.loadUrl("https://veloviewer.com/athlete/906837/activities")
+        webView.loadUrl("https://veloviewer.com/athlete/576593/activities")
     }
 
     private fun setupWebviewForUpdate() {
