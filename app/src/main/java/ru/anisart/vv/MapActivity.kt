@@ -28,6 +28,9 @@ import com.mapbox.mapboxsdk.style.layers.Property
 import com.mapbox.mapboxsdk.style.layers.PropertyFactory
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
 import com.mapbox.services.commons.geojson.*
+import io.reactivex.Observable
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.schedulers.Schedulers
 import permissions.dispatcher.NeedsPermission
 import permissions.dispatcher.OnNeverAskAgain
 import permissions.dispatcher.OnPermissionDenied
@@ -74,69 +77,81 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
         mapView.getMapAsync {
             map = it
 
-            val explorerTiles = preferences
-                    .getStringSet(App.PREFERENCE_TILES, HashSet())
-                    .toList()
+            val bounds = LatLngBounds.Builder()
             val clusterTiles = preferences
                     .getStringSet(App.PREFERENCE_CLUSTER_TILES, HashSet())
-
-            val bounds = LatLngBounds.Builder()
-            val features = ArrayList<Feature>()
-            for (tile in explorerTiles) {
-                val xy = tile.split("-")
-                if (xy.size != 2) {
-                    continue
-                }
-                val bbox = tile2boundingBox(xy[0].toInt(), xy[1].toInt(), explorerZoom)
-
-                val feature = Feature.fromGeometry(Polygon.fromCoordinates(
-                        arrayOf(
+            Observable
+                    .just(preferences)
+                    .map {
+                        it.getStringSet(App.PREFERENCE_TILES, null)
+                    }
+                    .filter { it.isNotEmpty() }
+                    .flatMapIterable { it }
+                    .map { it.split("-") }
+                    .filter { it.size == 2 }
+                    .map {
+                        val bbox = tile2boundingBox(it[0].toInt(), it[1].toInt(), explorerZoom)
+                        val feature = Feature.fromGeometry(Polygon.fromCoordinates(
                                 arrayOf(
-                                        doubleArrayOf(bbox.west, bbox.north),
-                                        doubleArrayOf(bbox.east, bbox.north),
-                                        doubleArrayOf(bbox.east, bbox.south),
-                                        doubleArrayOf(bbox.west, bbox.south),
-                                        doubleArrayOf(bbox.west, bbox.north)))))
-                bounds.includes(arrayListOf(
-                        LatLng(bbox.north, bbox.west),
-                        LatLng(bbox.north, bbox.east),
-                        LatLng(bbox.south, bbox.east),
-                        LatLng(bbox.south, bbox.west)))
+                                        arrayOf(
+                                                doubleArrayOf(bbox.west, bbox.north),
+                                                doubleArrayOf(bbox.east, bbox.north),
+                                                doubleArrayOf(bbox.east, bbox.south),
+                                                doubleArrayOf(bbox.west, bbox.south),
+                                                doubleArrayOf(bbox.west, bbox.north)))))
+                        bounds.includes(arrayListOf(
+                                LatLng(bbox.north, bbox.west),
+                                LatLng(bbox.north, bbox.east),
+                                LatLng(bbox.south, bbox.east),
+                                LatLng(bbox.south, bbox.west)))
 
-                if (clusterTiles.contains(tile)) {
-                    feature.addStringProperty("stroke", "#000099")
-                    feature.addStringProperty("fill", "#0000FF")
-                } else {
-                    feature.addStringProperty("stroke", "#009900")
-                    feature.addStringProperty("fill", "#00FF00")
-                }
-                feature.addNumberProperty("fill-opacity", 0.3f)
-                features.add(feature)
-            }
+                        feature.addNumberProperty("fill-opacity", 0.3f)
+                        if (clusterTiles.contains("%s-%s".format(it[0], it[1]))) {
+                            feature.addStringProperty("stroke", "#000099")
+                            feature.addStringProperty("fill", "#0000FF")
+                        } else {
+                            feature.addStringProperty("stroke", "#009900")
+                            feature.addStringProperty("fill", "#00FF00")
+                        }
+                        feature
+                    }
+                    .toList()
+                    .map(FeatureCollection::fromFeatures)
+                    .map { GeoJsonSource(explorerSource, it) }
+                    .subscribeOn(Schedulers.computation())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe({
+                        map.addSource(it)
+                        map.addLayer(FillLayer(explorerLayer, explorerSource)
+                                .withProperties(
+                                        PropertyFactory.fillOutlineColor(Function.property("stroke", IdentityStops<String>())),
+                                        PropertyFactory.fillColor(Function.property("fill", IdentityStops<String>())),
+                                        PropertyFactory.fillOpacity(Function.property("fill-opacity", IdentityStops<Float>())),
+                                        PropertyFactory.visibility(Property.NONE)
+                                ))
+                        map.cameraPosition = CameraUpdateFactory.newLatLngBounds(bounds.build(), 10)
+                                .getCameraPosition(map)
+                    }, {
+                        it.printStackTrace()
+                    })
 
-            val geoJson = preferences.getString(App.PREFERENCE_RIDES_JSON, "")
-            if (geoJson.isNotEmpty()) {
-                map.addSource(GeoJsonSource(ridesSource, geoJson))
-                map.addLayer(LineLayer(ridesLayer, ridesSource)
-                        .withProperties(
-                                PropertyFactory.lineColor(Color.RED),
-                                PropertyFactory.visibility(Property.NONE)
-                        ))
-            }
-
-            if (features.isNotEmpty()) {
-                val featureCollection = FeatureCollection.fromFeatures(features)
-                map.addSource(GeoJsonSource(explorerSource, featureCollection))
-                map.addLayer(FillLayer(explorerLayer, explorerSource)
-                        .withProperties(
-                                PropertyFactory.fillOutlineColor(Function.property("stroke", IdentityStops<String>())),
-                                PropertyFactory.fillColor(Function.property("fill", IdentityStops<String>())),
-                                PropertyFactory.fillOpacity(Function.property("fill-opacity", IdentityStops<Float>())),
-                                PropertyFactory.visibility(Property.NONE)
-                        ))
-                map.cameraPosition = CameraUpdateFactory.newLatLngBounds(bounds.build(), 10)
-                        .getCameraPosition(map)
-            }
+            Observable
+                    .just(preferences)
+                    .map { it.getString(App.PREFERENCE_RIDES_JSON, null) }
+                    .filter { it.isNotEmpty() }
+                    .map { GeoJsonSource(ridesSource, it) }
+                    .subscribeOn(Schedulers.computation())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe({
+                        map.addSource(it)
+                        map.addLayer(LineLayer(ridesLayer, ridesSource)
+                                .withProperties(
+                                        PropertyFactory.lineColor(Color.RED),
+                                        PropertyFactory.visibility(Property.NONE)
+                                ))
+                    }, {
+                        it.printStackTrace()
+                    })
 
             map.addSource(GeoJsonSource(gridSource))
             val gridLayer = LineLayer(gridLayer, gridSource)
@@ -337,9 +352,5 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
         }
         val gridCollection = FeatureCollection.fromFeatures(gridLines)
         (map.getSource(gridSource) as GeoJsonSource).setGeoJson(gridCollection)
-    }
-
-    override fun onBackPressed() {
-        Toast.makeText(this, "Back!", Toast.LENGTH_SHORT).show()
     }
 }

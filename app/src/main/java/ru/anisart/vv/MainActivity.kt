@@ -32,10 +32,11 @@ class MainActivity : AppCompatActivity() {
     val explorerDirPath = "tiles/Explorer/14/"
     val tileExt = ".png.tile"
     val explorerAssetName = "explorer.png"
-    val notExplorerAssetName = "not_explorer.png"
+    val clusterAssetName = "cluster.png"
     val metaAssetName = "metainfo"
     val allRidesFileName = "tracks/VV_all_rides.gpx"
     var explorerTiles = ArrayList<Pair<String, String>>()
+    var clusterTiles = ArrayList<Pair<String, String>>()
 
     lateinit var preferences: SharedPreferences
 
@@ -105,12 +106,13 @@ class MainActivity : AppCompatActivity() {
     @OnClick(R.id.recreateBtn)
     fun onRecleateButtonClick(v: View) {
         osmandFolder = preferences.getString(DiskUtil.SC_PREFERENCE_KEY, "")
-//        if (osmandFolder.isEmpty()) {
+        if (osmandFolder.isEmpty()) {
 //            Toast.makeText(this, "You need select OsmAnd data folder!", Toast.LENGTH_SHORT).show()
 //            return
-//        } else {
+            setupWebviewForExplorer()
+        } else {
             MainActivityPermissionsDispatcher.setupWebviewForExplorerWithCheck(this)
-//        }
+        }
 //        MainActivityPermissionsDispatcher.mockRecteateTilesAndRidesWithCheck(this)
     }
 
@@ -145,9 +147,10 @@ class MainActivity : AppCompatActivity() {
                 .putStringSet(App.PREFERENCE_CLUSTER_TILES, tiles.toSet())
                 .apply()
 
-        ///////////////////////////////
-        ///////////////////////////////
-        startActivity(Intent(this, MapActivity::class.java))
+        clusterTiles.clear()
+        for (tile in tiles) {
+            clusterTiles.add(Pair(tile.substringBefore('-', "-1"), tile.substringAfter('-', "-1")))
+        }
     }
 
     @JavascriptInterface
@@ -201,7 +204,8 @@ class MainActivity : AppCompatActivity() {
         var completeCount = 0
         runOnUiThread { recreateBtn.progress = 0 }
         explorerTiles.toObservable()
-                .doOnNext { (first, second) -> copyAssetTFile(explorerAssetName,
+                .doOnNext { (first, second) -> copyAssetTFile(
+                        if (Pair(first, second) in clusterTiles) clusterAssetName else explorerAssetName,
                         File(osmandFolder, explorerDirPath + first + "/" + second + tileExt)) }
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -300,7 +304,7 @@ class MainActivity : AppCompatActivity() {
                         "window.JSInterface.setClusterTiles(Object.keys(window.maxClump));")
             }
         }
-        webView.loadUrl("https://veloviewer.com/athlete/576593/activities")
+        webView.loadUrl("https://veloviewer.com/activities")
     }
 
     private fun setupWebviewForUpdate() {
