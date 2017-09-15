@@ -9,12 +9,13 @@ android {
         applicationId "ru.anisart.vv"
         minSdkVersion 19
         targetSdkVersion 26
-        versionCode 28
+        versionCode 29
         versionName "1.3"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        vectorDrawables.useSupportLibrary = true
     }
     signingConfigs {
-        debug { }
+        debug {}
         release {
             if (project.hasProperty("keys.repo")) {
                 def projectPropsFile = file(project.property("keys.repo") + "/vv.properties")
@@ -99,6 +100,7 @@ dependencies {
     compile 'io.reactivex.rxjava2:rxjava:2.1.3'
     compile 'io.reactivex.rxjava2:rxkotlin:2.1.0'
     compile 'com.squareup.okhttp3:logging-interceptor:3.8.1'
+    compile 'com.jaredrummler:colorpicker:1.0.1'
 }
 repositories {
     jcenter()

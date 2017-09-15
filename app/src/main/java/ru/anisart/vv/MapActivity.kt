@@ -1,33 +1,42 @@
 package ru.anisart.vv
 
 import android.Manifest
+import android.app.Fragment
 import android.content.SharedPreferences
-import android.graphics.Color
 import android.location.Location
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.preference.PreferenceManager
+import android.support.v7.app.AppCompatActivity
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.CompoundButton
 import android.widget.TextView
 import android.widget.Toast
 import android.widget.ToggleButton
+import butterknife.BindString
 import butterknife.BindView
 import butterknife.ButterKnife
 import butterknife.OnClick
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
+import com.mapbox.mapboxsdk.constants.Style
 import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import com.mapbox.mapboxsdk.maps.MapView
 import com.mapbox.mapboxsdk.maps.MapboxMap
 import com.mapbox.mapboxsdk.style.functions.Function
-import com.mapbox.mapboxsdk.style.functions.stops.IdentityStops
+import com.mapbox.mapboxsdk.style.functions.stops.Stop
+import com.mapbox.mapboxsdk.style.functions.stops.Stops
 import com.mapbox.mapboxsdk.style.layers.FillLayer
 import com.mapbox.mapboxsdk.style.layers.LineLayer
 import com.mapbox.mapboxsdk.style.layers.Property
 import com.mapbox.mapboxsdk.style.layers.PropertyFactory
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
-import com.mapbox.services.commons.geojson.*
+import com.mapbox.mapboxsdk.style.sources.Source
+import com.mapbox.services.commons.geojson.Feature
+import com.mapbox.services.commons.geojson.FeatureCollection
+import com.mapbox.services.commons.geojson.LineString
+import com.mapbox.services.commons.geojson.Polygon
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
@@ -40,18 +49,18 @@ import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 
 @RuntimePermissions
-class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener {
+class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener,
+        SharedPreferences.OnSharedPreferenceChangeListener {
 
     private val explorerZoom = 14
 
-    private val explorerSource = "explorer_source"
-    private val ridesSource = "rides_source"
-    private val gridSource = "grid_source"
-    private val explorerLayer = "explorer_layer"
-    private val ridesLayer = "rides_layer"
-    private val gridLayer = "grid_layer"
-
-    class BBox(val north: Double, val south: Double, val west: Double, val east: Double)
+    private val explorerSourceId = "explorer_source"
+    private val ridesSourceId = "rides_source"
+    private val gridSourceId = "grid_source"
+    private val explorerLayerId = "explorer_layer"
+    private val ridesLayerId = "rides_layer"
+    private val gridLayerId = "grid_layer"
+    private val clusterFlag = "cluster"
 
     @BindView(R.id.mapView)
     lateinit var mapView: MapView
@@ -64,117 +73,56 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
     @BindView(R.id.debug)
     lateinit var debugView: TextView
 
-    lateinit var map: MapboxMap
-    lateinit var preferences: SharedPreferences
+    @BindString(R.string.key_color_explorer_fill)
+    lateinit var explorerKey: String
+    @BindString(R.string.key_color_cluster_fill)
+    lateinit var clusterKey: String
+    @BindString(R.string.key_color_rides)
+    lateinit var ridesKey: String
+    @BindString(R.string.key_color_grid)
+    lateinit var gridKey: String
+    @BindString(R.string.key_map_style)
+    lateinit var mapKey: String
+
+    private lateinit var map: MapboxMap
+    private lateinit var preferences: SharedPreferences
+    private lateinit var settingsFragment: Fragment
+
+    private var startBounds: LatLngBounds.Builder? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_map)
         ButterKnife.bind(this)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
         preferences = PreferenceManager.getDefaultSharedPreferences(this)
+        settingsFragment = fragmentManager.findFragmentById(R.id.map_settings)
+        fragmentManager.beginTransaction().hide(settingsFragment).commit()
 
         mapView.onCreate(savedInstanceState)
+        val style = preferences.getString(mapKey, Style.OUTDOORS)
+        mapView.setStyleUrl(style)
         mapView.getMapAsync {
             map = it
-
-            val bounds = LatLngBounds.Builder()
-            val clusterTiles = preferences
-                    .getStringSet(App.PREFERENCE_CLUSTER_TILES, HashSet())
-            Observable
-                    .just(preferences)
-                    .map {
-                        it.getStringSet(App.PREFERENCE_TILES, null)
-                    }
-                    .filter { it.isNotEmpty() }
-                    .flatMapIterable { it }
-                    .map { it.split("-") }
-                    .filter { it.size == 2 }
-                    .map {
-                        val bbox = tile2boundingBox(it[0].toInt(), it[1].toInt(), explorerZoom)
-                        val feature = Feature.fromGeometry(Polygon.fromCoordinates(
-                                arrayOf(
-                                        arrayOf(
-                                                doubleArrayOf(bbox.west, bbox.north),
-                                                doubleArrayOf(bbox.east, bbox.north),
-                                                doubleArrayOf(bbox.east, bbox.south),
-                                                doubleArrayOf(bbox.west, bbox.south),
-                                                doubleArrayOf(bbox.west, bbox.north)))))
-                        bounds.includes(arrayListOf(
-                                LatLng(bbox.north, bbox.west),
-                                LatLng(bbox.north, bbox.east),
-                                LatLng(bbox.south, bbox.east),
-                                LatLng(bbox.south, bbox.west)))
-
-                        feature.addNumberProperty("fill-opacity", 0.3f)
-                        if (clusterTiles.contains("%s-%s".format(it[0], it[1]))) {
-                            feature.addStringProperty("stroke", "#000099")
-                            feature.addStringProperty("fill", "#0000FF")
-                        } else {
-                            feature.addStringProperty("stroke", "#009900")
-                            feature.addStringProperty("fill", "#00FF00")
-                        }
-                        feature
-                    }
-                    .toList()
-                    .map(FeatureCollection::fromFeatures)
-                    .map { GeoJsonSource(explorerSource, it) }
-                    .subscribeOn(Schedulers.computation())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe({
-                        map.addSource(it)
-                        map.addLayer(FillLayer(explorerLayer, explorerSource)
-                                .withProperties(
-                                        PropertyFactory.fillOutlineColor(Function.property("stroke", IdentityStops<String>())),
-                                        PropertyFactory.fillColor(Function.property("fill", IdentityStops<String>())),
-                                        PropertyFactory.fillOpacity(Function.property("fill-opacity", IdentityStops<Float>())),
-                                        PropertyFactory.visibility(Property.NONE)
-                                ))
-                        map.cameraPosition = CameraUpdateFactory.newLatLngBounds(bounds.build(), 10)
-                                .getCameraPosition(map)
-                    }, {
-                        it.printStackTrace()
-                    })
-
-            Observable
-                    .just(preferences)
-                    .map { it.getString(App.PREFERENCE_RIDES_JSON, null) }
-                    .filter { it.isNotEmpty() }
-                    .map { GeoJsonSource(ridesSource, it) }
-                    .subscribeOn(Schedulers.computation())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe({
-                        map.addSource(it)
-                        map.addLayer(LineLayer(ridesLayer, ridesSource)
-                                .withProperties(
-                                        PropertyFactory.lineColor(Color.RED),
-                                        PropertyFactory.visibility(Property.NONE)
-                                ))
-                    }, {
-                        it.printStackTrace()
-                    })
-
-            map.addSource(GeoJsonSource(gridSource))
-            val gridLayer = LineLayer(gridLayer, gridSource)
-                    .withProperties(PropertyFactory.visibility(Property.NONE))
-            gridLayer.minZoom = 10f
-            map.addLayer(gridLayer)
-
-            if (savedInstanceState != null) {
-                explorerButton.isChecked = false
-                ridesButton.isChecked = false
-                gridButton.isChecked = false
+            initMap()
+            if (savedInstanceState == null) {
+                startBounds = LatLngBounds.Builder()
             }
             explorerButton.setOnCheckedChangeListener(this)
             ridesButton.setOnCheckedChangeListener(this)
             gridButton.setOnCheckedChangeListener(this)
 
             mapView.addOnMapChangedListener {
-                if (it in arrayOf(MapView.REGION_DID_CHANGE, MapView.REGION_DID_CHANGE_ANIMATED)) {
-                    if (BuildConfig.DEBUG) {
-                        debugInfo()
-                    }
-                    if (gridButton.isChecked) {
-                        calculateGrid()
+                when (it) {
+                    MapView.REGION_DID_CHANGE,
+                    MapView.REGION_DID_CHANGE_ANIMATED,
+                    MapView.DID_FINISH_LOADING_MAP -> {
+                        if (BuildConfig.DEBUG) {
+                            debugInfo()
+                        }
+                        if (gridButton.isChecked) {
+                            calculateGrid()
+                        }
                     }
                 }
             }
@@ -189,31 +137,33 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
     override fun onResume() {
         super.onResume()
         mapView.onResume()
+        preferences.registerOnSharedPreferenceChangeListener(this)
     }
 
     override fun onPause() {
-        super.onPause()
+        preferences.unregisterOnSharedPreferenceChangeListener(this)
         mapView.onPause()
+        super.onPause()
     }
 
     override fun onStop() {
-        super.onStop()
         mapView.onStop()
+        super.onStop()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
         mapView.onSaveInstanceState(outState)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onLowMemory() {
-        super.onLowMemory()
         mapView.onLowMemory()
+        super.onLowMemory()
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         mapView.onDestroy()
+        super.onDestroy()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -221,10 +171,23 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
         MapActivityPermissionsDispatcher.onRequestPermissionsResult(this, requestCode, grantResults)
     }
 
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_map, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem?): Boolean {
+        if (item?.itemId == R.id.action_colors) {
+            showSettings(settingsFragment.isHidden)
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
     override fun onCheckedChanged(button: CompoundButton?, isChecked: Boolean) {
         when (button?.id) {
             R.id.explorerButton -> {
-                val layer = map.getLayer(explorerLayer)
+                val layer = map.getLayer(explorerLayerId)
                 if (layer != null) {
                     layer.setProperties(PropertyFactory.visibility(
                             if (isChecked) Property.VISIBLE else Property.NONE))
@@ -235,7 +198,7 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
                 }
             }
             R.id.ridesButton -> {
-                val layer = map.getLayer(ridesLayer)
+                val layer = map.getLayer(ridesLayerId)
                 if (layer != null) {
                     layer.setProperties(PropertyFactory.visibility(
                             if (isChecked) Property.VISIBLE else Property.NONE))
@@ -246,7 +209,7 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
                 }
             }
             R.id.gridButton -> {
-                val layer = map.getLayer(gridLayer)
+                val layer = map.getLayer(gridLayerId)
                 if (layer != null) {
                     layer.setProperties(PropertyFactory.visibility(
                             if (isChecked) Property.VISIBLE else Property.NONE))
@@ -260,35 +223,161 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
         }
     }
 
+    override fun onBackPressed() {
+        if (!settingsFragment.isHidden) {
+            showSettings(false)
+        } else {
+            super.onBackPressed()
+        }
+    }
+
+    override fun onSharedPreferenceChanged(preferences1: SharedPreferences?, key: String?) {
+        when (key) {
+            explorerKey,
+            clusterKey -> {
+                val layer = map.getLayer(explorerLayerId) ?: return
+                val colorE = preferences.getInt(explorerKey, 0)
+                val alphaE = alfaFromColor(colorE)
+                val colorC = preferences.getInt(clusterKey, 0)
+                val alphaC = alfaFromColor(colorC)
+                layer.setProperties(
+                        PropertyFactory.fillOutlineColor(
+                                Function.property(
+                                        clusterFlag,
+                                        Stops.categorical(Stop.stop(true, PropertyFactory.fillOutlineColor(colorC))))
+                                        .withDefaultValue(PropertyFactory.fillOutlineColor(colorE))),
+                        PropertyFactory.fillColor(
+                                Function.property(
+                                        clusterFlag,
+                                        Stops.categorical(Stop.stop(true, PropertyFactory.fillColor(colorC))))
+                                        .withDefaultValue(PropertyFactory.fillColor(colorE))),
+                        PropertyFactory.fillOpacity(
+                                Function.property(
+                                        clusterFlag,
+                                        Stops.categorical(Stop.stop(true, PropertyFactory.fillOpacity(alphaC))))
+                                        .withDefaultValue(PropertyFactory.fillOpacity(alphaE))))
+            }
+            ridesKey -> {
+                val layer = map.getLayer(ridesLayerId) ?: return
+                val color = preferences.getInt(ridesKey, 0)
+                val alpha = alfaFromColor(color)
+                layer.setProperties(
+                        PropertyFactory.lineColor(color),
+                        PropertyFactory.lineOpacity(alpha))
+            }
+            gridKey -> {
+                val layer = map.getLayer(gridLayerId) ?: return
+                val color = preferences.getInt(gridKey, 0)
+                val alpha = alfaFromColor(color)
+                layer.setProperties(
+                        PropertyFactory.lineColor(color),
+                        PropertyFactory.lineOpacity(alpha))
+            }
+            mapKey -> {
+                val style = preferences.getString(mapKey, Style.OUTDOORS)
+                map.layers.forEach { map.removeLayer(it) }
+                map.sources.forEach { map.removeSource(it) }
+                map.setStyleUrl(style, {
+                    initMap()
+                })
+            }
+        }
+    }
+
+    private fun initMap() {
+        val clusterTiles = preferences
+                .getStringSet(App.PREFERENCE_CLUSTER_TILES, HashSet())
+        Observable
+                .just(preferences)
+                .map {
+                    it.getStringSet(App.PREFERENCE_TILES, null)
+                }
+                .filter { it.isNotEmpty() }
+                .flatMapIterable { it }
+                .map { it.split("-") }
+                .filter { it.size == 2 }
+                .map {
+                    val bbox = tile2boundingBox(it[0].toInt(), it[1].toInt(), explorerZoom)
+                    val feature = Feature.fromGeometry(Polygon.fromCoordinates(
+                            arrayOf(
+                                    arrayOf(
+                                            doubleArrayOf(bbox.west, bbox.north),
+                                            doubleArrayOf(bbox.east, bbox.north),
+                                            doubleArrayOf(bbox.east, bbox.south),
+                                            doubleArrayOf(bbox.west, bbox.south),
+                                            doubleArrayOf(bbox.west, bbox.north)))))
+                    feature.addBooleanProperty(clusterFlag, clusterTiles.contains("%s-%s".format(it[0], it[1])))
+                    startBounds?.includes(arrayListOf(
+                            LatLng(bbox.north, bbox.west),
+                            LatLng(bbox.north, bbox.east),
+                            LatLng(bbox.south, bbox.east),
+                            LatLng(bbox.south, bbox.west)))
+                    feature
+                }
+                .toList()
+                .map(FeatureCollection::fromFeatures)
+                .map { GeoJsonSource(explorerSourceId, it) }
+                .subscribeOn(Schedulers.computation())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe({
+                    setupExplorerTiles(it)
+                    startBounds?.build()?.let {
+                        map.cameraPosition = CameraUpdateFactory.newLatLngBounds(it, 10)
+                                .getCameraPosition(map)
+                        startBounds = null
+                    }
+                }, {
+                    it.printStackTrace()
+                })
+
+        Observable
+                .just(preferences)
+                .map { it.getString(App.PREFERENCE_RIDES_JSON, null) }
+                .filter { it.isNotEmpty() }
+                .map { GeoJsonSource(ridesSourceId, it) }
+                .subscribeOn(Schedulers.computation())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe({
+                    setupRides(it)
+                }, {
+                    it.printStackTrace()
+                })
+
+        setupGrid()
+    }
+
+    private fun setupExplorerTiles(source: Source) {
+        map.addSource(source)
+        map.addLayer(FillLayer(explorerLayerId, explorerSourceId)
+                .withProperties(
+                        PropertyFactory.visibility(if (explorerButton.isChecked) Property.VISIBLE else Property.NONE)
+                ))
+        onSharedPreferenceChanged(preferences, explorerKey)
+    }
+
+    private fun setupRides(source: Source) {
+        map.addSource(source)
+        map.addLayer(LineLayer(ridesLayerId, ridesSourceId)
+                .withProperties(
+                        PropertyFactory.visibility(if (ridesButton.isChecked) Property.VISIBLE else Property.NONE)
+                ))
+        onSharedPreferenceChanged(preferences, ridesKey)
+    }
+
+    private fun setupGrid() {
+        map.addSource(GeoJsonSource(gridSourceId))
+        val gridLayer = LineLayer(gridLayerId, gridSourceId)
+                .withProperties(
+                        PropertyFactory.visibility(if (gridButton.isChecked) Property.VISIBLE else Property.NONE)
+                )
+        gridLayer.minZoom = 10f
+        map.addLayer(gridLayer)
+        onSharedPreferenceChanged(preferences, gridKey)
+    }
+
     @OnClick(R.id.myLocationButton)
     fun onLocationButtonClick(v: View) {
         MapActivityPermissionsDispatcher.getLastLocationWithCheck(this)
-    }
-
-    private fun tile2lon(x: Int, z: Int): Double {
-        return x / Math.pow(2.0, z.toDouble()) * 360.0 - 180
-    }
-
-    private fun tile2lat(y: Int, z: Int): Double {
-        val n = Math.PI - 2.0 * Math.PI * y.toDouble() / Math.pow(2.0, z.toDouble())
-        return Math.toDegrees(Math.atan(Math.sinh(n)))
-    }
-
-    private fun tile2boundingBox(x: Int, y: Int, zoom: Int): BBox {
-        val north = tile2lat(y, zoom)
-        val south = tile2lat(y + 1, zoom)
-        val west = tile2lon(x, zoom)
-        val east = tile2lon(x + 1, zoom)
-        return BBox(north, south, west, east)
-    }
-
-    private fun lon2tile(lon: Double, zoom: Int): Int {
-        return Math.floor((lon + 180) / 360 * Math.pow(2.0, zoom.toDouble())).toInt()
-    }
-
-    private fun lat2tile(lat: Double, zoom: Int): Int {
-        return Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI)
-                / 2 * Math.pow(2.0, zoom.toDouble())).toInt()
     }
 
     private fun setCameraPosition(location: Location) {
@@ -302,10 +391,12 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
             setCameraPosition(map.myLocation as Location)
         } else {
             map.isMyLocationEnabled = true
-            map.setOnMyLocationChangeListener { location -> run {
-                setCameraPosition(location as Location)
-                map.setOnMyLocationChangeListener(null)
-            } }
+            map.setOnMyLocationChangeListener { location ->
+                run {
+                    setCameraPosition(location as Location)
+                    map.setOnMyLocationChangeListener(null)
+                }
+            }
 
         }
     }
@@ -329,7 +420,7 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
     }
 
     private fun calculateGrid() {
-        map.getLayer(gridLayer) ?: return
+        map.getLayer(gridLayerId) ?: return
         if (map.cameraPosition.zoom < 9.9) return
 
         val bounds = map.projection.visibleRegion.latLngBounds
@@ -351,6 +442,20 @@ class MapActivity : AppCompatActivity(), CompoundButton.OnCheckedChangeListener 
             }
         }
         val gridCollection = FeatureCollection.fromFeatures(gridLines)
-        (map.getSource(gridSource) as GeoJsonSource).setGeoJson(gridCollection)
+        (map.getSource(gridSourceId) as GeoJsonSource).setGeoJson(gridCollection)
     }
+
+    private fun showSettings(isShow: Boolean) {
+        val transaction = fragmentManager.beginTransaction()
+        transaction.setCustomAnimations(R.animator.enter_from_right, R.animator.exit_to_right)
+        if (isShow) {
+            transaction.show(settingsFragment)
+        } else {
+            transaction.hide(settingsFragment)
+        }
+        transaction.commit()
+    }
+
+    private fun alfaFromColor(rgba: Int) = ((rgba shr 24) and 0xFF) / 255f
+
 }

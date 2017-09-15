@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <com.jaredrummler.android.colorpicker.ColorPreference
+        android:defaultValue="0xFF3F51B5"
+        android:key="@string/key_color_explorer_fill"
+        android:title="Explorer tiles"
+        app:cpv_showAlphaSlider="true"/>
+
+    <com.jaredrummler.android.colorpicker.ColorPreference
+        android:defaultValue="0xFF3F51B5"
+        android:key="@string/key_color_cluster_fill"
+        android:title="Cluster tiles"
+        app:cpv_showAlphaSlider="true"/>
+
+    <com.jaredrummler.android.colorpicker.ColorPreference
+        android:defaultValue="0xFF3F51B5"
+        android:key="@string/key_color_grid"
+        android:title="Grid"
+        app:cpv_showAlphaSlider="true"/>
+
+    <com.jaredrummler.android.colorpicker.ColorPreference
+        android:defaultValue="0xFF3F51B5"
+        android:key="@string/key_color_rides"
+        android:title="Rides"
+        app:cpv_showAlphaSlider="true"/>
+
+    <ListPreference
+        android:key="@string/key_map_style"
+        android:title="Map style"
+        android:entries="@array/style_entries"
+        android:entryValues="@array/style_values"/>
+
+</PreferenceScreen>

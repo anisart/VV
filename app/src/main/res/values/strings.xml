@@ -3,4 +3,30 @@
     <string name="launcher_name">VV Explorer</string>
     <string name="btn_label_explorer">Explorer</string>
     <string name="btn_label_rides">Rides</string>
+    <string name="btn_label_grid">Grid</string>
+
+    <!-- Preferences -->
+    <string name="key_color_explorer_border">color_explorer_border</string>
+    <string name="key_color_explorer_fill">color_explorer_fill</string>
+    <string name="key_color_cluster_border">color_cluster_border</string>
+    <string name="key_color_cluster_fill">color_cluster_fill</string>
+    <string name="key_color_grid">color_grid</string>
+    <string name="key_color_rides">color_rides</string>
+    <string name="key_map_style">map_style</string>
+    <string-array name="style_entries">
+        <item>Streets</item>
+        <item>Dark</item>
+        <item>Light</item>
+        <item>Outdoors</item>
+        <item>Satellite</item>
+        <item>Satellite streets</item>
+    </string-array>
+    <string-array name="style_values">
+        <item>@string/mapbox_style_mapbox_streets</item>
+        <item>@string/mapbox_style_dark</item>
+        <item>@string/mapbox_style_light</item>
+        <item>mapbox://styles/mapbox/outdoors-v10</item>
+        <item>@string/mapbox_style_satellite</item>
+        <item>@string/mapbox_style_satellite_streets</item>
+    </string-array>
 </resources>
