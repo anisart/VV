@@ -16,5 +16,15 @@
         <item name="android:layout_margin">4dp</item>
         <item name="android:textColor">#FFFFFF</item>
     </style>
+    
+    <style name="vv_action_button">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="fab_size">mini</item>
+        <item name="fab_colorNormal">@color/vv_red</item>
+        <item name="fab_colorPressed">@color/vv_red</item>
+        <item name="menu_colorNormal">@color/vv_red</item>
+        <item name="menu_colorPressed">@color/vv_red</item>
+    </style>
 
 </resources>

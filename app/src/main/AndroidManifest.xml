@@ -13,7 +13,6 @@
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity android:name=".MainActivity">
             <intent-filter android:label="@string/launcher_name">
@@ -25,7 +24,10 @@
         <activity
             android:name=".MapActivity"
             android:label="Map"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".MainActivity"
+            android:launchMode="singleTop"/>
+        <service
+            android:name=".AlertService"/>
     </application>
 
 </manifest>

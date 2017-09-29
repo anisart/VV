@@ -3,27 +3,32 @@ package ru.anisart.vv
 import android.Manifest
 import android.content.Intent
 import android.content.SharedPreferences
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Environment
 import android.preference.PreferenceManager
+import android.support.v7.app.AppCompatActivity
 import android.view.View
-import android.webkit.*
+import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.ProgressBar
 import android.widget.Toast
 import butterknife.BindView
 import butterknife.ButterKnife
 import butterknife.OnClick
+import com.codekidlabs.storagechooser.StorageChooser
+import com.codekidlabs.storagechooser.utils.DiskUtil
 import com.dd.processbutton.iml.ActionProcessButton
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.toObservable
 import io.reactivex.schedulers.Schedulers
+import permissions.dispatcher.NeedsPermission
+import permissions.dispatcher.OnNeverAskAgain
+import permissions.dispatcher.OnPermissionDenied
+import permissions.dispatcher.RuntimePermissions
 import java.io.*
-import kotlin.collections.ArrayList
-import permissions.dispatcher.*
-import com.codekidlabs.storagechooser.StorageChooser
-import com.codekidlabs.storagechooser.utils.DiskUtil
 
 @RuntimePermissions
 class MainActivity : AppCompatActivity() {
@@ -80,7 +85,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        MainActivityPermissionsDispatcher.onRequestPermissionsResult(this, requestCode, grantResults)
+        onRequestPermissionsResult(requestCode, grantResults)
     }
 
     @OnPermissionDenied(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -95,7 +100,7 @@ class MainActivity : AppCompatActivity() {
 
     @OnClick(R.id.osmandBtn)
     fun onOsmandButtonClick(v: View) {
-        MainActivityPermissionsDispatcher.selectOsmandFolderWithCheck(this)
+        selectOsmandFolderWithPermissionCheck()
     }
 
     @OnClick(R.id.updateBtn)
@@ -111,9 +116,8 @@ class MainActivity : AppCompatActivity() {
 //            return
             setupWebviewForExplorer()
         } else {
-            MainActivityPermissionsDispatcher.setupWebviewForExplorerWithCheck(this)
+            setupWebviewForExplorerWithPermissionCheck()
         }
-//        MainActivityPermissionsDispatcher.mockRecteateTilesAndRidesWithCheck(this)
     }
 
     @OnClick(R.id.mapBtn)
