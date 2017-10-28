@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Explorer helper for VeloViewer</string>
     <string name="launcher_name">VV Explorer</string>
     <string name="btn_label_explorer">Explorer</string>
@@ -6,14 +6,29 @@
     <string name="btn_label_grid">Grid</string>
 
     <!-- Preferences -->
-    <string name="key_color_explorer_border">color_explorer_border</string>
-    <string name="key_color_explorer_fill">color_explorer_fill</string>
-    <string name="key_color_cluster_border">color_cluster_border</string>
-    <string name="key_color_cluster_fill">color_cluster_fill</string>
+    <string name="key_color_explorer">color_explorer_fill</string>
+    <string name="key_color_cluster">color_cluster_fill</string>
     <string name="key_color_grid">color_grid</string>
     <string name="key_color_rides">color_rides</string>
+    <string name="key_color_recorded_track">color_recorded_track</string>
+    <string name="key_color_recorded_tiles">color_recorded_tiles</string>
     <string name="key_map_style">map_style</string>
-    <string-array name="style_entries">
+    <string name="key_heatmap_type">heatmap_type</string>
+    <string name="key_heatmap_style">heatmap_style</string>
+
+    <!-- Tracking -->
+    <string name="action_pause">Pause</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_start">Start</string>
+    <string name="action_clear">Clear</string>
+    <string name="title_record_dialog">Track record</string>
+
+    <!-- Settings -->
+    <string name="sync_settings">Sync tiles and rides</string>
+    <string name="style_settings">Style settings</string>
+
+    <string-array name="map_style_entries">
         <item>Streets</item>
         <item>Dark</item>
         <item>Light</item>
@@ -21,12 +36,47 @@
         <item>Satellite</item>
         <item>Satellite streets</item>
     </string-array>
-    <string-array name="style_values">
+    <string name="mapbox_style_outdoors" tools:override="true">mapbox://styles/mapbox/outdoors-v10</string>
+    <string-array name="map_style_values">
         <item>@string/mapbox_style_mapbox_streets</item>
         <item>@string/mapbox_style_dark</item>
         <item>@string/mapbox_style_light</item>
-        <item>mapbox://styles/mapbox/outdoors-v10</item>
+        <item>@string/mapbox_style_outdoors</item>
         <item>@string/mapbox_style_satellite</item>
         <item>@string/mapbox_style_satellite_streets</item>
+    </string-array>
+
+    <string-array name="heatmap_type_entries">
+        <item>Bike</item>
+        <item>Run</item>
+        <item>Both</item>
+    </string-array>
+    <string name="heatmap_type_default_value">cycling</string>
+    <string-array name="heatmap_type_values">
+        <item>cycling</item>
+        <item>running</item>
+        <item>both</item>
+    </string-array>
+    
+    <string-array name="heatmap_style_entries">
+        <item>Color 1</item>
+        <item>Color 2</item>
+        <item>Color 3</item>
+        <item>Color 4</item>
+        <item>Color 5</item>
+        <item>Color 6</item>
+        <item>Color 7</item>
+        <item>Color 8</item>
+    </string-array>
+    <string name="heatmap_style_default_value">color1</string>
+    <string-array name="heatmap_style_values">
+        <item>color1</item>
+        <item>color2</item>
+        <item>color3</item>
+        <item>color4</item>
+        <item>color5</item>
+        <item>color6</item>
+        <item>color7</item>
+        <item>color8</item>
     </string-array>
 </resources>

@@ -35,12 +35,12 @@
         android:layout_height="wrap_content"
         android:text="Recreate tiles and rides"/>
 
-    <com.dd.processbutton.iml.ActionProcessButton
+    <!--<com.dd.processbutton.iml.ActionProcessButton
         style="@style/vv_button"
         android:id="@+id/mapBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="View on map (BETA)"/>
+        android:text="View on map (BETA)"/>-->
 
     <ProgressBar
         android:id="@+id/progressBar"

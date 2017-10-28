@@ -1,17 +1,14 @@
 package ru.anisart.vv
 
 import android.Manifest
-import android.content.Intent
+import android.app.Activity
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.Environment
 import android.preference.PreferenceManager
 import android.support.v7.app.AppCompatActivity
 import android.view.View
-import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.webkit.*
 import android.widget.ProgressBar
 import android.widget.Toast
 import butterknife.BindView
@@ -29,19 +26,19 @@ import permissions.dispatcher.OnNeverAskAgain
 import permissions.dispatcher.OnPermissionDenied
 import permissions.dispatcher.RuntimePermissions
 import java.io.*
+import java.util.*
 
 @RuntimePermissions
 class MainActivity : AppCompatActivity() {
 
-    var osmandFolder = ""
-    val explorerDirPath = "tiles/Explorer/14/"
-    val tileExt = ".png.tile"
-    val explorerAssetName = "explorer.png"
-    val clusterAssetName = "cluster.png"
-    val metaAssetName = "metainfo"
-    val allRidesFileName = "tracks/VV_all_rides.gpx"
-    var explorerTiles = ArrayList<Pair<String, String>>()
-    var clusterTiles = ArrayList<Pair<String, String>>()
+    private var osmandFolder = ""
+    private val explorerDirPath = "tiles/Explorer/14/"
+    private val tileExt = ".png.tile"
+    private val explorerAssetName = "explorer.png"
+    private val clusterAssetName = "cluster.png"
+    private val metaAssetName = "metainfo"
+    private val allRidesFileName = "tracks/VV_all_rides.gpx"
+    private var explorerTiles = HashSet<Tile>()
 
     lateinit var preferences: SharedPreferences
 
@@ -56,6 +53,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         ButterKnife.bind(this)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
         preferences = PreferenceManager.getDefaultSharedPreferences(this)
 
         WebView.setWebContentsDebuggingEnabled(true)
@@ -118,25 +116,24 @@ class MainActivity : AppCompatActivity() {
         } else {
             setupWebviewForExplorerWithPermissionCheck()
         }
+        setResult(Activity.RESULT_OK)
     }
 
-    @OnClick(R.id.mapBtn)
-    fun onMapButtonClick(v: View) {
-        startActivity(Intent(this, MapActivity::class.java))
-    }
+//    @OnClick(R.id.mapBtn)
+//    fun onMapButtonClick(v: View) {
+//        startActivity(Intent(this, MapActivity::class.java))
+//    }
 
     @JavascriptInterface
-    fun setExplorerTiles(tiles: Array<String>?) {
-        if (tiles == null) return
-
-        preferences.edit()
-                .putStringSet(App.PREFERENCE_TILES, tiles.toSet())
-                .apply()
+    fun setExplorerTiles(tiles: Array<String>?, clusterTiles: Array<String>?) {
+        if (tiles == null || clusterTiles == null) return
 
         explorerTiles.clear()
-        for (tile in tiles) {
-            explorerTiles.add(Pair(tile.substringBefore('-', "-1"), tile.substringAfter('-', "-1")))
-        }
+        tiles.forEach { explorerTiles.add(Tile.fromString(it)) }
+        clusterTiles.forEach { explorerTiles.addReplace(Tile.fromString(it).apply { isCluster = true }) }
+        preferences.edit { putString(App.PREFERENCE_TILES, explorerTiles.toJson()) }
+
+        Toast.makeText(this, "[MAP] Explorer tiles has been recreated!", Toast.LENGTH_SHORT).show()
 
         if (!osmandFolder.isEmpty()) {
             createTiles()
@@ -144,21 +141,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     @JavascriptInterface
-    fun setClusterTiles(tiles: Array<String>?) {
-        if (tiles == null) return
-
-        preferences.edit()
-                .putStringSet(App.PREFERENCE_CLUSTER_TILES, tiles.toSet())
-                .apply()
-
-        clusterTiles.clear()
-        for (tile in tiles) {
-            clusterTiles.add(Pair(tile.substringBefore('-', "-1"), tile.substringAfter('-', "-1")))
-        }
-    }
-
-    @JavascriptInterface
-    fun setAllRidesGpx(gpx: String) {
+    fun setAllRidesGpx(gpx: String?) {
         if (osmandFolder.isEmpty()) {
             return
         }
@@ -176,7 +159,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     @JavascriptInterface
-    fun setAllRidesJson(json: String) {
+    fun setAllRidesJson(json: String?) {
         Observable.just(json)
                 .map { s -> saveGeoJson(s) }
                 .subscribeOn(Schedulers.io())
@@ -188,6 +171,11 @@ class MainActivity : AppCompatActivity() {
                     e.printStackTrace()
                     Toast.makeText(this, "Error during creating rides file.", Toast.LENGTH_SHORT).show()
                 }})
+    }
+
+    @JavascriptInterface
+    fun log(arg: String?) {
+        println(arg)
     }
 
     private fun createDirs(): Boolean {
@@ -208,9 +196,11 @@ class MainActivity : AppCompatActivity() {
         var completeCount = 0
         runOnUiThread { recreateBtn.progress = 0 }
         explorerTiles.toObservable()
-                .doOnNext { (first, second) -> copyAssetTFile(
-                        if (Pair(first, second) in clusterTiles) clusterAssetName else explorerAssetName,
-                        File(osmandFolder, explorerDirPath + first + "/" + second + tileExt)) }
+                .doOnNext {
+                    copyAssetTFile(
+                            if (it.isCluster) clusterAssetName else explorerAssetName,
+                            File(osmandFolder, explorerDirPath + it.x + "/" + it.y + tileExt))
+                }
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe({
@@ -256,9 +246,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun saveGeoJson(json: String) {
-        preferences.edit()
-                .putString(App.PREFERENCE_RIDES_JSON, json)
-                .apply()
+        preferences.edit { putString(App.PREFERENCE_RIDES_JSON, json) }
     }
 
     @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -294,20 +282,40 @@ class MainActivity : AppCompatActivity() {
                     return
                 }
                 webView.setOnTouchListener { _, _ -> true }  // DISABLE TOUCH
-                view?.loadUrl("javascript: " +
-                        "document.getElementById('viewMapCheckBox').click(); " +
-                        "document.getElementById('showExplorerCheckBox').click(); " +
-                        "document.getElementById('viewMapCheckBox').click(); " +
-                        "var features = []; " +
-                        "liveData.forEach( function(d, i) { if (d.mapFeature != null) features.push(d.mapFeature); } ); " +
-                        "var gpx = new OpenLayers.Format.GPX({ 'internalProjection': toProjection, 'externalProjection': fromProjection }); " +
-                        "window.JSInterface.setAllRidesGpx(gpx.write(features)); " +
-                        "var geojson = new OpenLayers.Format.GeoJSON({ 'internalProjection': toProjection, 'externalProjection': fromProjection }); " +
-                        "window.JSInterface.setAllRidesJson(geojson.write(features)); " +
-                        "window.JSInterface.setExplorerTiles(Object.keys(window.explorerTiles)); " +
-                        "window.JSInterface.setClusterTiles(Object.keys(window.maxClump));")
+                view?.loadUrl("""javascript:
+                    |var togpx;
+                    |var script = document.createElement("script");
+                    |script.setAttribute("type", "text/javascript");
+                    |script.setAttribute("src", "https://cdn.jsdelivr.net/npm/togpx@0.5.4/togpx.js");
+                    |document.getElementsByTagName("head")[0].appendChild(script);
+
+                    |function wait(condition, callback) {
+                    |    if (typeof condition() !== "undefined") {
+                    |        callback();
+                    |    } else {
+                    |        setTimeout(function () {
+                    |            wait(condition, callback);
+                    |        }, 0)
+                    |    }
+                    |}
+
+                    |document.getElementById('viewMapCheckBox').click();
+                    |document.getElementById('viewMapCheckBox').click();
+                    |var collection = { "type": "FeatureCollection", "features": [] };
+                    |liveData.forEach( function(d, i) { if (d.ll != null) collection.features.push(d.ll.toGeoJSON()); } );
+                    |window.JSInterface.setAllRidesJson(JSON.stringify(collection));
+                    |wait( function() { return togpx; }, function() {
+                    |   window.JSInterface.log("togpx defied");
+                    |   window.JSInterface.setAllRidesGpx(togpx(collection));
+                    |});
+                    |wait( function() { return window.maxClump; }, function() {
+                    |    window.JSInterface.log("maxClump defied");
+                    |    window.JSInterface.setExplorerTiles(Object.keys(window.explorerTiles), Object.keys(window.maxClump));
+                    |});"""
+                        .trimMargin())
             }
         }
+        CookieManager.getInstance().setCookie(".veloviewer.com", "ExplorerMaxSquareShown=1")
         webView.loadUrl("https://veloviewer.com/activities")
     }
 
@@ -336,6 +344,6 @@ class MainActivity : AppCompatActivity() {
         osmandFolder = Environment.getExternalStorageDirectory().absolutePath
         setAllRidesGpx(Mock.instance.geojson)
         setAllRidesJson(Mock.instance.geojson)
-        setExplorerTiles(Mock.instance.explorerTiles)
+        setExplorerTiles(Mock.instance.explorerTiles, Mock.instance.clusterTiles)
     }
 }

@@ -14,20 +14,20 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/AppTheme">
-        <activity android:name=".MainActivity">
+        <activity
+            android:name=".MainActivity"
+            android:parentActivityName=".MapActivity"/>
+        <activity
+            android:name=".MapActivity"
+            android:label="@string/app_name"
+            android:launchMode="singleTop">
             <intent-filter android:label="@string/launcher_name">
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".MapActivity"
-            android:label="Map"
-            android:parentActivityName=".MainActivity"
-            android:launchMode="singleTop"/>
         <service
-            android:name=".AlertService"/>
+            android:name=".TrackingService"/>
     </application>
 
 </manifest>

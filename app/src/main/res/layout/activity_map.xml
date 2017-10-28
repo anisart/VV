@@ -24,11 +24,11 @@
                 app:mapbox_styleUrl="mapbox://styles/mapbox/outdoors-v10"
                 app:mapbox_uiRotateGestures="false"
                 app:mapbox_uiTiltGestures="false"
-                app:mapbox_uiZoomControls="true" />
+                app:mapbox_uiZoomControls="false" />
 
             <com.github.clans.fab.FloatingActionMenu
                 style="@style/vv_action_button"
-                android:id="@+id/menu"
+                android:id="@+id/addButton"
                 android:layout_margin="16dp"
                 app:layout_anchor="@id/mapView"
                 app:layout_anchorGravity="bottom|left|start"
@@ -55,10 +55,10 @@
                     app:fab_label="Grid"/>
 
                 <com.github.clans.fab.FloatingActionButton
-                    android:id="@+id/styleButton"
+                    android:id="@+id/heatmapButton"
                     style="@style/vv_action_button"
-                    android:src="@drawable/ic_colors"
-                    app:fab_label="Style"/>
+                    android:src="@drawable/ic_heatmap"
+                    app:fab_label="Heatmap"/>
 
             </com.github.clans.fab.FloatingActionMenu>
 
@@ -70,7 +70,23 @@
                 app:layout_anchor="@id/mapView"
                 app:layout_anchorGravity="bottom|right|end"/>
 
-            <TextView
+            <android.support.design.widget.FloatingActionButton
+                style="@style/vv_action_button"
+                android:id="@+id/recordButton"
+                android:src="@drawable/ic_record"
+                android:layout_margin="16dp"
+                app:layout_anchor="@id/mapView"
+                app:layout_anchorGravity="top|right|end"/>
+
+            <android.support.design.widget.FloatingActionButton
+                style="@style/vv_action_button"
+                android:id="@+id/settingsButton"
+                android:src="@drawable/ic_settings"
+                android:layout_margin="16dp"
+                app:layout_anchor="@id/mapView"
+                app:layout_anchorGravity="top|left|start"/>
+
+            <TextView android:visibility="invisible"
                 android:id="@+id/debug"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -79,41 +95,10 @@
 
         </android.support.design.widget.CoordinatorLayout>
 
-        <!--<LinearLayout-->
-            <!--android:layout_width="match_parent"-->
-            <!--android:layout_height="wrap_content"-->
-            <!--android:orientation="horizontal">-->
-
-            <!--<ToggleButton-->
-                <!--android:id="@+id/explorerButton"-->
-                <!--android:layout_width="wrap_content"-->
-                <!--android:layout_height="wrap_content"-->
-                <!--android:checked="false"-->
-                <!--android:textOff="@string/btn_label_explorer"-->
-                <!--android:textOn="@string/btn_label_explorer" />-->
-
-            <!--<ToggleButton-->
-                <!--android:id="@+id/ridesButton"-->
-                <!--android:layout_width="wrap_content"-->
-                <!--android:layout_height="wrap_content"-->
-                <!--android:checked="false"-->
-                <!--android:textOff="@string/btn_label_rides"-->
-                <!--android:textOn="@string/btn_label_rides" />-->
-
-            <!--<ToggleButton-->
-                <!--android:id="@+id/gridButton"-->
-                <!--android:layout_width="wrap_content"-->
-                <!--android:layout_height="wrap_content"-->
-                <!--android:checked="false"-->
-                <!--android:textOff="@string/btn_label_grid"-->
-                <!--android:textOn="@string/btn_label_grid" />-->
-
-        <!--</LinearLayout>-->
-
     </LinearLayout>
 
     <fragment
-        android:name="ru.anisart.vv.MapSettingsFragment"
+        android:name="ru.anisart.vv.StyleSettingsFragment"
         android:id="@+id/map_settings"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
