@@ -1,0 +1,73 @@
+{
+  "project_info": {
+    "project_number": "706342316812",
+    "firebase_url": "https://android-vv.firebaseio.com",
+    "project_id": "android-vv",
+    "storage_bucket": "android-vv.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:706342316812:android:0bee8a8fd0a2d60b",
+        "android_client_info": {
+          "package_name": "ru.anisart.vv"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "706342316812-jvegtk8iifl24um4e1o842b0agg4i18l.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdRK79Z7KcHP5jI1FfTAq7zUeceTI6BAg"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:706342316812:android:f35dbc466d127a35",
+        "android_client_info": {
+          "package_name": "ru.anisart.vv.debug"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "706342316812-jvegtk8iifl24um4e1o842b0agg4i18l.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdRK79Z7KcHP5jI1FfTAq7zUeceTI6BAg"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

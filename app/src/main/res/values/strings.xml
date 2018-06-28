@@ -47,36 +47,32 @@
     </string-array>
 
     <string-array name="heatmap_type_entries">
-        <item>Bike</item>
-        <item>Run</item>
-        <item>Both</item>
+        <item>All</item>
+        <item>Rides</item>
+        <item>Runs</item>
+        <item>Water</item>
+        <item>Winter</item>
     </string-array>
-    <string name="heatmap_type_default_value">cycling</string>
+    <string name="heatmap_type_default_value">ride</string>
     <string-array name="heatmap_type_values">
-        <item>cycling</item>
-        <item>running</item>
-        <item>both</item>
+        <item>all</item>
+        <item>ride</item>
+        <item>run</item>
+        <item>water</item>
+        <item>winter</item>
     </string-array>
     
     <string-array name="heatmap_style_entries">
-        <item>Color 1</item>
-        <item>Color 2</item>
-        <item>Color 3</item>
-        <item>Color 4</item>
-        <item>Color 5</item>
-        <item>Color 6</item>
-        <item>Color 7</item>
-        <item>Color 8</item>
+        <item>Hot</item>
+        <item>Blue</item>
+        <item>Gray</item>
+        <item>Blue-Red</item>
     </string-array>
-    <string name="heatmap_style_default_value">color1</string>
+    <string name="heatmap_style_default_value">bluered</string>
     <string-array name="heatmap_style_values">
-        <item>color1</item>
-        <item>color2</item>
-        <item>color3</item>
-        <item>color4</item>
-        <item>color5</item>
-        <item>color6</item>
-        <item>color7</item>
-        <item>color8</item>
+        <item>hot</item>
+        <item>blue</item>
+        <item>gray</item>
+        <item>bluered</item>
     </string-array>
 </resources>

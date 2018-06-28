@@ -1,6 +1,7 @@
 package ru.anisart.vv
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.SharedPreferences
 import android.os.Bundle
@@ -17,6 +18,7 @@ import butterknife.OnClick
 import com.codekidlabs.storagechooser.StorageChooser
 import com.codekidlabs.storagechooser.utils.DiskUtil
 import com.dd.processbutton.iml.ActionProcessButton
+import com.google.firebase.analytics.FirebaseAnalytics
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.toObservable
@@ -40,7 +42,8 @@ class MainActivity : AppCompatActivity() {
     private val allRidesFileName = "tracks/VV_all_rides.gpx"
     private var explorerTiles = HashSet<Tile>()
 
-    lateinit var preferences: SharedPreferences
+    private lateinit var preferences: SharedPreferences
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
 
     @BindView(R.id.webView)
     lateinit var webView: WebView
@@ -54,10 +57,12 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         ButterKnife.bind(this)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
         preferences = PreferenceManager.getDefaultSharedPreferences(this)
 
         WebView.setWebContentsDebuggingEnabled(true)
         webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
         webView.settings.userAgentString = "Mozilla/5.0 Google"
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView, progress: Int) {
@@ -81,6 +86,7 @@ class MainActivity : AppCompatActivity() {
 //        return super.onOptionsItemSelected(item)
 //    }
 
+    @SuppressLint("NeedOnRequestPermissionsResult")
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         onRequestPermissionsResult(requestCode, grantResults)
@@ -138,6 +144,9 @@ class MainActivity : AppCompatActivity() {
         if (!osmandFolder.isEmpty()) {
             createTiles()
         }
+
+        firebaseAnalytics.setUserProperty(Analytics.explorerTiles, tiles.size.toString())
+        firebaseAnalytics.setUserProperty(Analytics.clusterTiles, clusterTiles.size.toString())
     }
 
     @JavascriptInterface
@@ -174,8 +183,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     @JavascriptInterface
-    fun log(arg: String?) {
-        println(arg)
+    fun setRidesCount(count: String?) {
+        firebaseAnalytics.setUserProperty(Analytics.activities, count)
     }
 
     private fun createDirs(): Boolean {
@@ -304,12 +313,11 @@ class MainActivity : AppCompatActivity() {
                     |var collection = { "type": "FeatureCollection", "features": [] };
                     |liveData.forEach( function(d, i) { if (d.ll != null) collection.features.push(d.ll.toGeoJSON()); } );
                     |window.JSInterface.setAllRidesJson(JSON.stringify(collection));
+                    |window.JSInterface.setRidesCount(String(collection.features.length));
                     |wait( function() { return togpx; }, function() {
-                    |   window.JSInterface.log("togpx defied");
                     |   window.JSInterface.setAllRidesGpx(togpx(collection));
                     |});
                     |wait( function() { return window.maxClump; }, function() {
-                    |    window.JSInterface.log("maxClump defied");
                     |    window.JSInterface.setExplorerTiles(Object.keys(window.explorerTiles), Object.keys(window.maxClump));
                     |});"""
                         .trimMargin())

@@ -1,6 +1,7 @@
 package ru.anisart.vv
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.*
 import android.graphics.Color
@@ -19,9 +20,8 @@ import butterknife.ButterKnife
 import butterknife.OnClick
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.gson.Gson
-import com.mapbox.mapboxsdk.Mapbox
-import com.mapbox.mapboxsdk.annotations.MarkerOptions
 import com.mapbox.mapboxsdk.annotations.PolygonOptions
 import com.mapbox.mapboxsdk.annotations.PolylineOptions
 import com.mapbox.mapboxsdk.camera.CameraPosition
@@ -39,15 +39,10 @@ import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
 import com.mapbox.mapboxsdk.style.sources.RasterSource
 import com.mapbox.mapboxsdk.style.sources.Source
 import com.mapbox.mapboxsdk.style.sources.TileSet
-import com.mapbox.services.Constants.PRECISION_6
-import com.mapbox.services.api.directions.v5.DirectionsCriteria
-import com.mapbox.services.api.directions.v5.models.DirectionsRoute
-import com.mapbox.services.api.rx.directions.v5.MapboxDirectionsRx
 import com.mapbox.services.commons.geojson.Feature
 import com.mapbox.services.commons.geojson.FeatureCollection
 import com.mapbox.services.commons.geojson.LineString
 import com.mapbox.services.commons.geojson.Polygon
-import com.mapbox.services.commons.models.Position
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.toObservable
@@ -92,7 +87,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private val STATE_GRID = "grid"
     private val STATE_HEATMAP = "heatmap"
     private val STATE_TARGET_POLYGON = "target_polygon"
-    private val STATE_ROUTE_POINT = "route_point"
+//    private val STATE_ROUTE_POINT = "route_point"
     private val PREFERENCE_CAMERA_POSITION = "camera_position"
 
     @BindView(R.id.mapView)
@@ -138,6 +133,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private lateinit var preferences: SharedPreferences
     private lateinit var settingsFragment: StyleSettingsFragment
     private lateinit var receiver: BroadcastReceiver
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
 
     private var explorer = false
     private var rides = false
@@ -145,7 +141,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private var heatmap = false
     private var tagretPolygon: PolygonOptions? = null
     private var routeLine: PolylineOptions? = null
-    private var routePoint: LatLng? = null
+//    private var routePoint: LatLng? = null
     private var onMapInitObservable: Observable<Any>? = null
     private var service: TrackingService? = null
     private var mapAllowed = false
@@ -155,6 +151,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         setContentView(R.layout.activity_map)
         ButterKnife.bind(this)
         supportActionBar?.hide()
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
         preferences = PreferenceManager.getDefaultSharedPreferences(this)
         settingsFragment = fragmentManager.findFragmentById(R.id.map_settings) as StyleSettingsFragment
         settingsFragment.setOnIconClickListener(object : StyleSettingsFragment.OnIconClickListener {
@@ -170,7 +167,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
             grid = savedInstanceState.getBoolean(STATE_GRID)
             heatmap = savedInstanceState.getBoolean(STATE_HEATMAP)
             tagretPolygon = savedInstanceState.getParcelable(STATE_TARGET_POLYGON)
-            routePoint = savedInstanceState.getParcelable(STATE_ROUTE_POINT)
+//            routePoint = savedInstanceState.getParcelable(STATE_ROUTE_POINT)
         }
 
         mapView.onCreate(savedInstanceState)
@@ -185,7 +182,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
             }
             initMap()
             onMapInitObservable?.subscribe()
-            routePoint?.let(this::route)
+//            routePoint?.let(this::route)
 
             mapView.addOnMapChangedListener {
                 when (it) {
@@ -285,7 +282,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         outState.putBoolean(STATE_GRID, grid)
         outState.putBoolean(STATE_HEATMAP, heatmap)
         outState.putParcelable(STATE_TARGET_POLYGON, tagretPolygon)
-        outState.putParcelable(STATE_ROUTE_POINT, routePoint)
+//        outState.putParcelable(STATE_ROUTE_POINT, routePoint)
         mapView.onSaveInstanceState(outState)
         super.onSaveInstanceState(outState)
     }
@@ -300,6 +297,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         super.onDestroy()
     }
 
+    @SuppressLint("NeedOnRequestPermissionsResult")
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         onRequestPermissionsResult(requestCode, grantResults)
@@ -359,7 +357,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
     override fun onServiceConnected(componentName: ComponentName?, binder: IBinder?) {
         service = (binder as TrackingService.LocalBinder).getService()
-        service?.targetBounds?.let(this::drawTargetTile)
+//        service?.targetBounds?.let(this::drawTargetTile)
         updateTracking(true)
     }
 
@@ -471,8 +469,8 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         val type = preferences.getString(heatmapTypeKey, "")
         val style = preferences.getString(heatmapStyleKey, "")
         map.addSource(RasterSource(HEATMAP_SOURCE_ID,
-                TileSet("2.1.0", "http://globalheat.strava.com/tiles/$type/$style/{z}/{x}/{y}.png"),
-                128))
+                TileSet("2.1.0", "http://heatmap-external-b.strava.com/tiles/$type/$style/{z}/{x}/{y}.png")
+                        .apply { minZoom = 1f; maxZoom = 15f }, 256))
         map.addLayerBelow(RasterLayer(HEATMAP_LAYER_ID, HEATMAP_SOURCE_ID)
                 .withProperties(PropertyFactory.visibility(
                         if (heatmap) Property.VISIBLE else Property.NONE
@@ -540,7 +538,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
         selector(getString(R.string.title_record_dialog), buttons, { _, i ->
             when (buttons[i]) {
-                startString -> startRecording()
+                startString -> startRecordingWithPermissionCheck()
                 pauseString -> pauseRecording()
                 resumeString -> resumeRecording()
                 stopString -> stopRecording()
@@ -681,24 +679,25 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         transaction.commit()
     }
 
-    private fun addDestinationMarker(point: LatLng) {
-        map.markers.forEach(map::removeMarker)
-        map.addMarker(MarkerOptions()
-                .position(LatLng(point.latitude, point.longitude))
-                .title("Destination")
-                .snippet("Click to remove"))
-    }
+//    private fun addDestinationMarker(point: LatLng) {
+//        map.markers.forEach(map::removeMarker)
+//        map.addMarker(MarkerOptions()
+//                .position(LatLng(point.latitude, point.longitude))
+//                .title("Destination")
+//                .snippet("Click to remove"))
+//    }
+
+//    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+//    fun alertTile(point: LatLng) {
+//        if (service != null) unbindService(this)
+//        if (!checkPlayServices()) return
+//
+//        val bounds = point2bounds(point.latitude, point.longitude)
+//
+//    }
 
     @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-    fun alertTile(point: LatLng) {
-        if (service != null) unbindService(this)
-        if (!checkPlayServices()) return
-
-        val bounds = point2bounds(point.latitude, point.longitude)
-
-    }
-
-    private fun startRecording() {
+    fun startRecording() {
         if (!checkPlayServices()) return
 
         val serviceIntent = Intent(this, TrackingService::class.java)
@@ -734,44 +733,44 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         tagretPolygon?.let(map::addPolygon)
     }
 
-    private fun route(point: LatLng) {
-        routeLine?.polyline?.let(map::removePolyline)
-        addDestinationMarker(point)
-        val myLocation = map.myLocation ?: return
-        val origin = Position.fromLngLat(myLocation.longitude, myLocation.latitude)
-        val destination = Position.fromLngLat(point.longitude, point.latitude)
-        MapboxDirectionsRx.Builder()
-                .setOrigin(origin)
-                .setDestination(destination)
-                .setOverview(DirectionsCriteria.OVERVIEW_FULL)
-                .setProfile(DirectionsCriteria.PROFILE_CYCLING)
-                .setAccessToken(Mapbox.getAccessToken())
-                .build()
-                .observable
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe({
-                    drawRoute(it.routes.first())
-                    routePoint = point
-                }, {
-                    map.markers.forEach(map::removeMarker)
-                    it.printStackTrace()
-                    toast("Route not found.")
-                })
-    }
-
-    private fun drawRoute(route: DirectionsRoute) {
-        val lineString = LineString.fromPolyline(route.geometry, PRECISION_6)
-        val points = arrayListOf<LatLng>()
-        lineString.coordinates.forEach { points.add(LatLng(
-                it.latitude,
-                it.longitude)) }
-        routeLine = PolylineOptions()
-                .addAll(points)
-                .color(Color.parseColor("#009688"))
-                .width(5f)
-        routeLine?.let(map::addPolyline)
-    }
+//    private fun route(point: LatLng) {
+//        routeLine?.polyline?.let(map::removePolyline)
+//        addDestinationMarker(point)
+//        val myLocation = map.myLocation ?: return
+//        val origin = Position.fromLngLat(myLocation.longitude, myLocation.latitude)
+//        val destination = Position.fromLngLat(point.longitude, point.latitude)
+//        MapboxDirectionsRx.Builder()
+//                .setOrigin(origin)
+//                .setDestination(destination)
+//                .setOverview(DirectionsCriteria.OVERVIEW_FULL)
+//                .setProfile(DirectionsCriteria.PROFILE_CYCLING)
+//                .setAccessToken(Mapbox.getAccessToken())
+//                .build()
+//                .observable
+//                .subscribeOn(Schedulers.io())
+//                .observeOn(AndroidSchedulers.mainThread())
+//                .subscribe({
+//                    drawRoute(it.routes.first())
+//                    routePoint = point
+//                }, {
+//                    map.markers.forEach(map::removeMarker)
+//                    it.printStackTrace()
+//                    toast("Route not found.")
+//                })
+//    }
+//
+//    private fun drawRoute(route: DirectionsRoute) {
+//        val lineString = LineString.fromPolyline(route.geometry, PRECISION_6)
+//        val points = arrayListOf<LatLng>()
+//        lineString.coordinates.forEach { points.add(LatLng(
+//                it.latitude,
+//                it.longitude)) }
+//        routeLine = PolylineOptions()
+//                .addAll(points)
+//                .color(Color.parseColor("#009688"))
+//                .width(5f)
+//        routeLine?.let(map::addPolyline)
+//    }
 
     private fun updateExplorerLayerColors() {
         val layer = map.getLayer(EXPLORER_LAYER_ID) ?: return

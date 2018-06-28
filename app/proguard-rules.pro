@@ -11,18 +11,6 @@
     @android.webkit.JavascriptInterface <methods>;
 }
 
-# Glide
--keep public class * implements com.bumptech.glide.module.GlideModule
--keep public enum com.bumptech.glide.load.resource.bitmap.ImageHeaderParser$** {
-    **[] $VALUES;
-    public *;
-}
-
-# Retrofit
--dontnote retrofit2.Platform # Platform calls Class.forName on types which do not exist on Android to determine platform.
--dontnote retrofit2.Platform$IOS$MainThreadExecutor # Platform used when running on RoboVM on iOS. Will not be used at runtime.
--dontwarn retrofit2.Platform$Java8 # Platform used when running on Java 8 VMs. Will not be used at runtime.
-
 # OkHttp 3
 -keep class okhttp3.** { *; }
 -keep interface okhttp3.** { *; }
@@ -47,22 +35,6 @@
 -keep class butterknife.*
 -keepclasseswithmembernames class * { @butterknife.* <methods>; }
 -keepclasseswithmembernames class * { @butterknife.* <fields>; }
-
-# Joda time
--dontwarn org.joda.convert.**
--dontwarn org.joda.time.**
--keep class org.joda.time.** { *; }
--keep interface org.joda.time.** { *; }
-
-# Unity
--dontwarn com.androidnative.**
--keep public class com.unity.plugins.** { *; }
--keep class com.unity3d.** { *; }
--keep class bitter.jnibridge.** { *; }
--keep class org.fmod.** { *; }
-
-# Billing
--keep class com.android.vending.billing.**
 
 # Mapbox
 #-keep class com.mapbox.services.api.** { *; }
