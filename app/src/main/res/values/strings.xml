@@ -8,6 +8,7 @@
     <!-- Preferences -->
     <string name="key_color_explorer">color_explorer_fill</string>
     <string name="key_color_cluster">color_cluster_fill</string>
+    <string name="key_color_max_square">color_max_square</string>
     <string name="key_color_grid">color_grid</string>
     <string name="key_color_rides">color_rides</string>
     <string name="key_color_recorded_track">color_recorded_track</string>
@@ -32,15 +33,18 @@
         <item>Streets</item>
         <item>Dark</item>
         <item>Light</item>
+        <item>Bright</item>
         <item>Outdoors</item>
         <item>Satellite</item>
         <item>Satellite streets</item>
     </string-array>
     <string name="mapbox_style_outdoors" tools:override="true">mapbox://styles/mapbox/outdoors-v10</string>
+    <string name="mapbox_style_bright">mapbox://styles/mapbox/bright-v9</string>
     <string-array name="map_style_values">
         <item>@string/mapbox_style_mapbox_streets</item>
         <item>@string/mapbox_style_dark</item>
         <item>@string/mapbox_style_light</item>
+        <item>@string/mapbox_style_bright</item>
         <item>@string/mapbox_style_outdoors</item>
         <item>@string/mapbox_style_satellite</item>
         <item>@string/mapbox_style_satellite_streets</item>

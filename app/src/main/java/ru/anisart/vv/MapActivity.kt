@@ -11,38 +11,34 @@ import android.os.Bundle
 import android.os.IBinder
 import android.preference.PreferenceManager
 import android.support.v7.app.AppCompatActivity
-import android.view.View
-import android.widget.TextView
 import android.widget.Toast
 import butterknife.BindString
-import butterknife.BindView
 import butterknife.ButterKnife
 import butterknife.OnClick
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.gson.Gson
+import com.mapbox.android.core.location.LocationEngine
+import com.mapbox.android.core.location.LocationEngineListener
+import com.mapbox.android.core.location.LocationEnginePriority
+import com.mapbox.android.core.location.LocationEngineProvider
+import com.mapbox.geojson.*
 import com.mapbox.mapboxsdk.annotations.PolygonOptions
 import com.mapbox.mapboxsdk.annotations.PolylineOptions
-import com.mapbox.mapboxsdk.camera.CameraPosition
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.constants.Style
 import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import com.mapbox.mapboxsdk.maps.MapView
 import com.mapbox.mapboxsdk.maps.MapboxMap
-import com.mapbox.mapboxsdk.style.functions.Function
-import com.mapbox.mapboxsdk.style.functions.stops.Stop
-import com.mapbox.mapboxsdk.style.functions.stops.Stops
+import com.mapbox.mapboxsdk.plugins.locationlayer.LocationLayerPlugin
+import com.mapbox.mapboxsdk.style.expressions.Expression.*
 import com.mapbox.mapboxsdk.style.layers.*
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
 import com.mapbox.mapboxsdk.style.sources.RasterSource
 import com.mapbox.mapboxsdk.style.sources.Source
 import com.mapbox.mapboxsdk.style.sources.TileSet
-import com.mapbox.services.commons.geojson.Feature
-import com.mapbox.services.commons.geojson.FeatureCollection
-import com.mapbox.services.commons.geojson.LineString
-import com.mapbox.services.commons.geojson.Polygon
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.toObservable
@@ -60,7 +56,7 @@ import kotlin.collections.HashSet
 
 @RuntimePermissions
 class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceChangeListener,
-        ServiceConnection {
+        ServiceConnection, LocationEngineListener {
 
     private val CAMERA_ZOOM = 14.0
     private val BELOW_LAYER = "waterway-label"
@@ -69,18 +65,22 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private val SYNC_SETTINGS_REQUEST = 2
 
     private val EXPLORER_SOURCE_ID = "explorer_source"
+    private val SQUARE_SOURCE_ID = "square_source"
     private val RIDES_SOURCE_ID = "rides_source"
     private val GRID_SOURCE_ID = "grid_source"
     private val TRACKING_LINE_SOURCE_ID = "tracking_line_source"
     private val TRACKING_TILES_SOURCE_ID = "tracking_tiles_source"
     private val HEATMAP_SOURCE_ID = "heatmap_source"
     private val EXPLORER_LAYER_ID = "explorer_layer"
+    private val SQUARE_LAYER_ID = "square_layer"
     private val RIDES_LAYER_ID = "rides_layer"
     private val GRID_LAYER_ID = "grid_layer"
     private val TRACKING_LINE_LAYER_ID = "tracking_line_layer"
     private val TRACKING_TILES_LAYER_ID = "tracking_tiles_layer"
     private val HEATMAP_LAYER_ID = "heatmap_layer"
-    private val CLUSTER_FLAG = "cluster"
+    private val TYPE_FLAG = "cluster"
+    private val EXPLORER = 0
+    private val CLUSTER = 1
 
     private val STATE_EXPLORER = "explorer"
     private val STATE_RIDES = "rides"
@@ -90,15 +90,12 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 //    private val STATE_ROUTE_POINT = "route_point"
     private val PREFERENCE_CAMERA_POSITION = "camera_position"
 
-    @BindView(R.id.mapView)
-    lateinit var mapView: MapView
-    @BindView(R.id.debug)
-    lateinit var debugView: TextView
-
     @BindString(R.string.key_color_explorer)
     lateinit var explorerKey: String
     @BindString(R.string.key_color_cluster)
     lateinit var clusterKey: String
+    @BindString(R.string.key_color_max_square)
+    lateinit var squareKey: String
     @BindString(R.string.key_color_rides)
     lateinit var ridesKey: String
     @BindString(R.string.key_color_grid)
@@ -130,6 +127,8 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     lateinit var styleSettingsString: String
 
     private lateinit var map: MapboxMap
+    private lateinit var locationLayerPlugin: LocationLayerPlugin
+    private lateinit var locationEngine: LocationEngine
     private lateinit var preferences: SharedPreferences
     private lateinit var settingsFragment: StyleSettingsFragment
     private lateinit var receiver: BroadcastReceiver
@@ -145,6 +144,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private var onMapInitObservable: Observable<Any>? = null
     private var service: TrackingService? = null
     private var mapAllowed = false
+    private var locationListenerAdded = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -178,7 +178,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
             map = it
             val positionString = preferences.getString(PREFERENCE_CAMERA_POSITION, null)
             positionString?.let {
-                map.cameraPosition = Gson().fromJson<CameraPosition>(it)
+                map.cameraPosition = Gson().fromJson(it)
             }
             initMap()
             onMapInitObservable?.subscribe()
@@ -199,7 +199,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                 }
             }
 
-            map.setOnMapClickListener {
+            map.addOnMapClickListener {
                 if (!settingsFragment.isHidden) {
                     showSettings(false)
                 }
@@ -328,6 +328,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         when (key) {
             explorerKey,
             clusterKey -> updateExplorerLayerColors()
+            squareKey -> updateLayerColor(SQUARE_LAYER_ID, key)
             ridesKey -> updateLayerColor(RIDES_LAYER_ID, key)
             gridKey -> updateLayerColor(GRID_LAYER_ID, key)
             recordedTrackKey -> updateLayerColor(TRACKING_LINE_LAYER_ID, key)
@@ -336,7 +337,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                 val style = preferences.getString(mapKey, Style.OUTDOORS)
                 map.layers.forEach { map.removeLayer(it) }
                 map.sources.forEach { map.removeSource(it) }
-                map.setStyleUrl(style, { initMap() })
+                map.setStyleUrl(style) { initMap() }
             }
             heatmapTypeKey,
             heatmapStyleKey -> setupHeatmap()
@@ -350,7 +351,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                     "Google Play Services have been enabled. Try again!"
                 else
                     "Google Play Services has not been enabled. Tracking functionality is not available!")
-            SYNC_SETTINGS_REQUEST -> if (resultCode == Activity.RESULT_OK) updateTilesAndRides()
+            SYNC_SETTINGS_REQUEST -> if (resultCode == Activity.RESULT_OK) updateTilesAndRidesAndHeatmap()
             else -> super.onActivityResult(requestCode, resultCode, data)
         }
     }
@@ -367,18 +368,29 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         tagretPolygon = null
     }
 
+    override fun onLocationChanged(location: Location?) {
+        if (location != null) {
+            setCameraPosition(location)
+            locationEngine.removeLocationEngineListener(this)
+            locationListenerAdded = false
+        }
+    }
+
+    override fun onConnected() {
+        locationEngine.requestLocationUpdates()
+    }
+
     private fun initMap() {
-        setupHeatmap()
-        updateTilesAndRides()
+        updateTilesAndRidesAndHeatmap()
         setupGrid()
         setupTracking()
     }
 
-    private fun updateTilesAndRides() {
-        listOf(EXPLORER_LAYER_ID, RIDES_LAYER_ID).forEach {
+    private fun updateTilesAndRidesAndHeatmap() {
+        listOf(EXPLORER_LAYER_ID, SQUARE_LAYER_ID, RIDES_LAYER_ID).forEach {
             map.removeLayer(it)
         }
-        listOf(EXPLORER_SOURCE_ID, RIDES_SOURCE_ID).forEach {
+        listOf(EXPLORER_SOURCE_ID, SQUARE_SOURCE_ID, RIDES_SOURCE_ID).forEach {
             map.removeSource(it)
         }
 
@@ -390,21 +402,21 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                 .flatMapIterable { it }
                 .map {
                     val bbox = tile2bbox(it.x, it.y)
-                    Feature.fromGeometry(Polygon.fromCoordinates(
-                            arrayOf(
-                                    arrayOf(
-                                            doubleArrayOf(bbox.west, bbox.north),
-                                            doubleArrayOf(bbox.east, bbox.north),
-                                            doubleArrayOf(bbox.east, bbox.south),
-                                            doubleArrayOf(bbox.west, bbox.south),
-                                            doubleArrayOf(bbox.west, bbox.north)))))
-                            .apply { addBooleanProperty(CLUSTER_FLAG, it.isCluster) }
+                    Feature.fromGeometry(Polygon.fromLngLats(
+                            listOf(
+                                    listOf(
+                                            Point.fromLngLat(bbox.west, bbox.north),
+                                            Point.fromLngLat(bbox.east, bbox.north),
+                                            Point.fromLngLat(bbox.east, bbox.south),
+                                            Point.fromLngLat(bbox.west, bbox.south),
+                                            Point.fromLngLat(bbox.west, bbox.north)))))
+                            .apply { addNumberProperty(TYPE_FLAG, if (it.isCluster) CLUSTER else EXPLORER) }
                 }
                 .toList()
-                .map(FeatureCollection::fromFeatures)
-                .map { GeoJsonSource(EXPLORER_SOURCE_ID, it) }
+                .map {FeatureCollection.fromFeatures(it)}
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
+                .map { GeoJsonSource(EXPLORER_SOURCE_ID, it) }
                 .subscribe({
                     setupExplorerTiles(it)
                 }, {
@@ -413,16 +425,49 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
         Observable
                 .just(preferences)
-                .map { it.getString(App.PREFERENCE_RIDES_JSON, null) }
+                .map { it.getString(App.PREFERENCE_MAX_SQUARES, null) }
+                .map { Gson().fromJson<List<MaxSquare>>(it) ?: listOf() }
                 .filter { it.isNotEmpty() }
-                .map { GeoJsonSource(RIDES_SOURCE_ID, it) }
+                .flatMapIterable { it }
+                .map {
+                    val north = tile2lat(it.y)
+                    val west = tile2lon(it.x)
+                    val south = tile2lat(it.y + it.size)
+                    val east = tile2lon(it.x + it.size)
+                    Feature.fromGeometry(Polygon.fromLngLats(
+                            listOf(
+                                    listOf(
+                                            Point.fromLngLat(west, north),
+                                            Point.fromLngLat(east, north),
+                                            Point.fromLngLat(east, south),
+                                            Point.fromLngLat(west, south),
+                                            Point.fromLngLat(west, north)))))
+                }
+                .toList()
+                .map {FeatureCollection.fromFeatures(it)}
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
+                .map { GeoJsonSource(SQUARE_SOURCE_ID, it) }
+                .subscribe({
+                    setupMaxSquares(it)
+                }, {
+                    it.printStackTrace()
+                })
+
+        Observable
+                .just(preferences)
+                .map { it.getString(App.PREFERENCE_RIDES_JSON, null) }
+                .filter { it.isNotEmpty() }
+                .subscribeOn(Schedulers.computation())
+                .observeOn(AndroidSchedulers.mainThread())
+                .map { GeoJsonSource(RIDES_SOURCE_ID, it) }
                 .subscribe({
                     setupRides(it)
                 }, {
                     it.printStackTrace()
                 })
+
+        setupHeatmap()
     }
 
     private fun setupExplorerTiles(source: Source) {
@@ -432,6 +477,15 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                         PropertyFactory.visibility(if (explorer) Property.VISIBLE else Property.NONE)
                 ))
         updateExplorerLayerColors()
+    }
+
+    private fun setupMaxSquares(source: Source) {
+        map.addSource(source)
+        map.addLayer(LineLayer(SQUARE_LAYER_ID, SQUARE_SOURCE_ID)
+                .withProperties(
+                        PropertyFactory.visibility(if (explorer) Property.VISIBLE else Property.NONE)
+                ))
+        updateLayerColor(SQUARE_LAYER_ID, squareKey)
     }
 
     private fun setupRides(source: Source) {
@@ -468,8 +522,13 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         map.removeSource(HEATMAP_SOURCE_ID)
         val type = preferences.getString(heatmapTypeKey, "")
         val style = preferences.getString(heatmapStyleKey, "")
+        val authQuery = preferences.getString(App.PREFERENCE_HEATMAP_AUTH, null)
+        val url = when {
+            authQuery != null -> "https://heatmap-external-b.strava.com/tiles-auth/$type/$style/{z}/{x}/{y}.png$authQuery"
+            else -> "https://heatmap-external-b.strava.com/tiles/$type/$style/{z}/{x}/{y}.png"
+        }
         map.addSource(RasterSource(HEATMAP_SOURCE_ID,
-                TileSet("2.1.0", "http://heatmap-external-b.strava.com/tiles/$type/$style/{z}/{x}/{y}.png")
+                TileSet("2.1.0", url)
                         .apply { minZoom = 1f; maxZoom = 15f }, 256))
         map.addLayerBelow(RasterLayer(HEATMAP_LAYER_ID, HEATMAP_SOURCE_ID)
                 .withProperties(PropertyFactory.visibility(
@@ -478,16 +537,18 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     @OnClick(R.id.myLocationButton)
-    fun onLocationButtonClick(v: View) {
-        getLastLocationWithPermissionCheck()
+    fun onLocationButtonClick() {
+        enableMyLocationWithPermissionCheck()
     }
 
     @OnClick(R.id.explorerButton)
-    fun onExplorerButtonClick(v: View) {
+    fun onExplorerButtonClick() {
         val layer = map.getLayer(EXPLORER_LAYER_ID)
         if (layer != null) {
             explorer = !explorer
             layer.setProperties(PropertyFactory.visibility(
+                    if (explorer) Property.VISIBLE else Property.NONE))
+            map.getLayer(SQUARE_LAYER_ID)?.setProperties(PropertyFactory.visibility(
                     if (explorer) Property.VISIBLE else Property.NONE))
         } else {
             Toast.makeText(this, "No tiles!", Toast.LENGTH_SHORT).show()
@@ -495,7 +556,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     @OnClick(R.id.ridesButton)
-    fun onRidesButtonClick(v: View) {
+    fun onRidesButtonClick() {
         val layer = map.getLayer(RIDES_LAYER_ID)
         if (layer != null) {
             rides = !rides
@@ -507,7 +568,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     @OnClick(R.id.gridButton)
-    fun onGridButtonClick(v: View) {
+    fun onGridButtonClick() {
         val layer = map.getLayer(GRID_LAYER_ID)
         if (layer != null) {
             grid = !grid
@@ -520,7 +581,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     @OnClick(R.id.heatmapButton)
-    fun onHeatmapButtonClick(v: View) {
+    fun onHeatmapButtonClick() {
         map.getLayer(HEATMAP_LAYER_ID)?.let {
             heatmap = !heatmap
             it.setProperties(PropertyFactory.visibility(
@@ -529,14 +590,14 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     @OnClick(R.id.recordButton)
-    fun onRecordButtonClick(v: View) {
+    fun onRecordButtonClick() {
         val buttons = when (service?.state) {
             TrackingService.State.RECORDING -> listOf(pauseString, stopString)
             TrackingService.State.PAUSED -> listOf(resumeString, stopString)
             else -> listOf(startString, clearString)
         }
 
-        selector(getString(R.string.title_record_dialog), buttons, { _, i ->
+        selector(getString(R.string.title_record_dialog), buttons) { _, i ->
             when (buttons[i]) {
                 startString -> startRecordingWithPermissionCheck()
                 pauseString -> pauseRecording()
@@ -544,18 +605,18 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                 stopString -> stopRecording()
                 clearString -> clearTracking()
             }
-        })
+        }
     }
 
     @OnClick(R.id.settingsButton)
-    fun onSettingsButtonClick(v: View) {
+    fun onSettingsButtonClick() {
         val buttons = listOf(syncSettingsString, styleSettingsString)
-        selector(null, buttons, { _, i ->
+        selector(null, buttons) { _, i ->
             when (buttons[i]) {
                 syncSettingsString -> startActivityForResult(Intent(this, MainActivity::class.java), SYNC_SETTINGS_REQUEST)
                 styleSettingsString -> showSettings(settingsFragment.isHidden)
             }
-        })
+        }
     }
 
     private fun setCameraPosition(location: Location) {
@@ -564,19 +625,38 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-    fun getLastLocation() {
-        if (map.myLocation != null) {
-            setCameraPosition(map.myLocation as Location)
-        } else {
-            map.setOnMyLocationChangeListener(null)
-            map.isMyLocationEnabled = true
-            map.setOnMyLocationChangeListener { location ->
-                run {
-                    setCameraPosition(location as Location)
-                    map.setOnMyLocationChangeListener(null)
-                }
-            }
+    fun enableMyLocation() {
+//        if (map.myLocation != null) {
+//            setCameraPosition(map.myLocation as Location)
+//        } else {
+//            map.setOnMyLocationChangeListener(null)
+//            map.isMyLocationEnabled = true
+//            map.setOnMyLocationChangeListener { location ->
+//                run {
+//                    setCameraPosition(location as Location)
+//                    map.setOnMyLocationChangeListener(null)
+//                }
+//            }
+//
+//        }
 
+        if (!this::locationEngine.isInitialized) {
+            locationEngine = LocationEngineProvider(this).obtainBestLocationEngineAvailable()
+            locationEngine.priority = LocationEnginePriority.HIGH_ACCURACY
+            locationEngine.activate()
+        }
+
+        val lastLocation = locationEngine.lastLocation
+        if (lastLocation != null) {
+            setCameraPosition(lastLocation)
+        } else if (!locationListenerAdded) {
+            locationListenerAdded = true
+            locationEngine.addLocationEngineListener(this)
+        }
+
+        if (!this::locationLayerPlugin.isInitialized) {
+            locationLayerPlugin = LocationLayerPlugin(mapView, map, locationEngine)
+            locationLayerPlugin.setLocationLayerEnabled(true)
         }
     }
 
@@ -611,11 +691,11 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         for (x in x0 - 1..x1 + 1) {
             for (y in y0 - 1..y1 + 1) {
                 val bbox = tile2bbox(x, y)
-                val feature = Feature.fromGeometry(LineString.fromCoordinates(
-                        arrayOf(
-                                doubleArrayOf(bbox.west, bbox.south),
-                                doubleArrayOf(bbox.west, bbox.north),
-                                doubleArrayOf(bbox.east, bbox.north)
+                val feature = Feature.fromGeometry(LineString.fromLngLats(
+                        listOf(
+                                Point.fromLngLat(bbox.west, bbox.south),
+                                Point.fromLngLat(bbox.west, bbox.north),
+                                Point.fromLngLat(bbox.east, bbox.north)
                         )))
                 gridLines.add(feature)
             }
@@ -628,31 +708,31 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         if (service == null) return
 
         val lineSource = map.getSourceAs<GeoJsonSource>(TRACKING_LINE_SOURCE_ID)
-        lineSource?.setGeoJson(LineString.fromCoordinates(
+        lineSource?.setGeoJson(LineString.fromLngLats(
                 service!!.track.map {
-                    doubleArrayOf(it.longitude, it.latitude)
-                }.toTypedArray()))
+                    Point.fromLngLat(it.longitude, it.latitude)
+                }.toList()))
         if (newTile) {
             service!!.acquiredTiles.toObservable()
                     .map {
                         val bbox = tile2bbox(it.x, it.y)
-                        Feature.fromGeometry(Polygon.fromCoordinates(
-                                arrayOf(
-                                        arrayOf(
-                                                doubleArrayOf(bbox.west, bbox.north),
-                                                doubleArrayOf(bbox.east, bbox.north),
-                                                doubleArrayOf(bbox.east, bbox.south),
-                                                doubleArrayOf(bbox.west, bbox.south),
-                                                doubleArrayOf(bbox.west, bbox.north)))))
+                        Feature.fromGeometry(Polygon.fromLngLats(
+                                listOf(
+                                        listOf(
+                                                Point.fromLngLat(bbox.west, bbox.north),
+                                                Point.fromLngLat(bbox.east, bbox.north),
+                                                Point.fromLngLat(bbox.east, bbox.south),
+                                                Point.fromLngLat(bbox.west, bbox.south),
+                                                Point.fromLngLat(bbox.west, bbox.north)))))
                     }
                     .toList()
                     .map(FeatureCollection::fromFeatures)
+                    .subscribeOn(Schedulers.computation())
+                    .observeOn(AndroidSchedulers.mainThread())
                     .map {
                         val tileSource = map.getSourceAs<GeoJsonSource>(TRACKING_TILES_SOURCE_ID)
                         tileSource!!.setGeoJson(it)
                     }
-                    .subscribeOn(Schedulers.computation())
-                    .observeOn(AndroidSchedulers.mainThread())
                     .subscribe({}, {
                         it.printStackTrace()
                     })
@@ -775,38 +855,24 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private fun updateExplorerLayerColors() {
         val layer = map.getLayer(EXPLORER_LAYER_ID) ?: return
         val colorE = preferences.getInt(explorerKey, 0)
-        val alphaE = alfaFromColor(colorE)
         val colorC = preferences.getInt(clusterKey, 0)
-        val alphaC = alfaFromColor(colorC)
         layer.setProperties(
-                PropertyFactory.fillOutlineColor(
-                        Function.property(
-                                CLUSTER_FLAG,
-                                Stops.categorical(Stop.stop(true, PropertyFactory.fillOutlineColor(colorC))))
-                                .withDefaultValue(PropertyFactory.fillOutlineColor(colorE))),
                 PropertyFactory.fillColor(
-                        Function.property(
-                                CLUSTER_FLAG,
-                                Stops.categorical(Stop.stop(true, PropertyFactory.fillColor(colorC))))
-                                .withDefaultValue(PropertyFactory.fillColor(colorE))),
-                PropertyFactory.fillOpacity(
-                        Function.property(
-                                CLUSTER_FLAG,
-                                Stops.categorical(Stop.stop(true, PropertyFactory.fillOpacity(alphaC))))
-                                .withDefaultValue(PropertyFactory.fillOpacity(alphaE))))
+                        step(
+                                get(TYPE_FLAG),
+                                color(colorE),
+                                stop(CLUSTER, color(colorC))))
+                )
     }
 
     private fun updateLayerColor(layerId: String, preferenceKey: String) {
         val layer = map.getLayer(layerId) ?: return
         val color = preferences.getInt(preferenceKey, 0)
-        val alpha = alfaFromColor(color)
         when (layer) {
             is LineLayer -> layer.setProperties(
-                    PropertyFactory.lineColor(color),
-                    PropertyFactory.lineOpacity(alpha))
+                    PropertyFactory.lineColor(color(color)))
             is FillLayer -> layer.setProperties(
-                    PropertyFactory.fillColor(color),
-                    PropertyFactory.fillOpacity(alpha))
+                    PropertyFactory.fillColor(color(color)))
         }
 
     }

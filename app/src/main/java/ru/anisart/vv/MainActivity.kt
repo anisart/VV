@@ -8,7 +8,6 @@ import android.os.Bundle
 import android.os.Environment
 import android.preference.PreferenceManager
 import android.support.v7.app.AppCompatActivity
-import android.view.View
 import android.webkit.*
 import android.widget.ProgressBar
 import android.widget.Toast
@@ -19,6 +18,7 @@ import com.codekidlabs.storagechooser.StorageChooser
 import com.codekidlabs.storagechooser.utils.DiskUtil
 import com.dd.processbutton.iml.ActionProcessButton
 import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.gson.Gson
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.toObservable
@@ -103,17 +103,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     @OnClick(R.id.osmandBtn)
-    fun onOsmandButtonClick(v: View) {
+    fun onOsmandButtonClick() {
         selectOsmandFolderWithPermissionCheck()
     }
 
     @OnClick(R.id.updateBtn)
-    fun onUpdateClick(v: View) {
+    fun onUpdateClick() {
         setupWebviewForUpdate()
+        setResult(Activity.RESULT_OK)
     }
 
     @OnClick(R.id.recreateBtn)
-    fun onRecleateButtonClick(v: View) {
+    fun onRecleateButtonClick() {
         osmandFolder = preferences.getString(DiskUtil.SC_PREFERENCE_KEY, "")
         if (osmandFolder.isEmpty()) {
 //            Toast.makeText(this, "You need select OsmAnd data folder!", Toast.LENGTH_SHORT).show()
@@ -147,6 +148,11 @@ class MainActivity : AppCompatActivity() {
 
         firebaseAnalytics.setUserProperty(Analytics.explorerTiles, tiles.size.toString())
         firebaseAnalytics.setUserProperty(Analytics.clusterTiles, clusterTiles.size.toString())
+    }
+
+    @JavascriptInterface
+    fun setMaxSquares(json: String?) {
+        preferences.edit { putString(App.PREFERENCE_MAX_SQUARES, json) }
     }
 
     @JavascriptInterface
@@ -195,7 +201,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         if (!File(explorerDir.parent, metaAssetName).exists()) {
-            copyAssetTFile(metaAssetName, File(explorerDir.parent, "." + metaAssetName))
+            copyAssetTFile(metaAssetName, File(explorerDir.parent, ".$metaAssetName"))
         }
         return true
     }
@@ -285,7 +291,6 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
-                System.out.println(url)
                 if (url == null || !url.contains("veloviewer.com/\\S*activities".toRegex())) {
                     webView.setOnTouchListener(null)
                     return
@@ -319,6 +324,13 @@ class MainActivity : AppCompatActivity() {
                     |});
                     |wait( function() { return window.maxClump; }, function() {
                     |    window.JSInterface.setExplorerTiles(Object.keys(window.explorerTiles), Object.keys(window.maxClump));
+                    |    window.JSInterface.setMaxSquares(JSON.stringify(window.explorerMaxs.map( function(max) {
+                    |       square = {};
+                    |       square.x = max.x;
+                    |       square.y = max.y;
+                    |       square.size = max.size;
+                    |       return square;
+                    |   })));
                     |});"""
                         .trimMargin())
             }
@@ -327,7 +339,31 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl("https://veloviewer.com/activities")
     }
 
+    private fun setupWebviewForHeatmap() {
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                view?.loadUrl(url)
+                return true
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                setupWebviewForUpdate()
+            }
+        }
+        webView.loadUrl("https://www.strava.com/heatmap")
+    }
+
     private fun setupWebviewForUpdate() {
+        val keyPairId = getCookie("CloudFront-Key-Pair-Id")
+        val policy = getCookie("CloudFront-Policy")
+        val signature = getCookie("CloudFront-Signature")
+
+        if (keyPairId != null) {
+            preferences.edit { putString(App.PREFERENCE_HEATMAP_AUTH, "?Key-Pair-Id=$keyPairId&Policy=$policy&Signature=$signature") }
+        } else {
+            preferences.edit { putString(App.PREFERENCE_HEATMAP_AUTH, null) }
+        }
+
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                 view?.loadUrl(url)
@@ -340,15 +376,31 @@ class MainActivity : AppCompatActivity() {
                     return
                 }
                 webView.setOnTouchListener { _, _ -> true }  // DISABLE TOUCH
-                view?.loadUrl("javascript: " +
-                        "document.getElementById('GetNewActivities').click();")
+                if (getCookie("CloudFront-Key-Pair-Id") == null) {
+                    setupWebviewForHeatmap()
+                } else {
+                    view?.loadUrl("javascript: " +
+                            "document.getElementById('GetNewActivities').click();")
+                }
             }
         }
         webView.loadUrl("https://veloviewer.com/update")
     }
 
+    private fun getCookie(CookieName: String): String? {
+        val stravaUrl = "https://www.strava.com"
+        val cookieManager = CookieManager.getInstance()
+        val cookies = cookieManager.getCookie(stravaUrl) ?: return null
+        val temp = cookies.split(";".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+        return temp
+                .filter { it.contains(CookieName) }
+                .map { ar1 -> ar1.split("=".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray() }
+                .firstOrNull()
+                ?.let { it[1] }
+    }
+
     @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-    fun mockRecteateTilesAndRides() {
+    fun mockRecreateTilesAndRides() {
         osmandFolder = Environment.getExternalStorageDirectory().absolutePath
         setAllRidesGpx(Mock.instance.geojson)
         setAllRidesJson(Mock.instance.geojson)

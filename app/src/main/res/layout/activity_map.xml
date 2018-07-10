@@ -20,7 +20,6 @@
                 android:id="@+id/mapView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                app:mapbox_myLocation="true"
                 app:mapbox_styleUrl="mapbox://styles/mapbox/outdoors-v10"
                 app:mapbox_uiRotateGestures="false"
                 app:mapbox_uiTiltGestures="false"
@@ -86,8 +85,8 @@
                 app:layout_anchor="@id/mapView"
                 app:layout_anchorGravity="top|left|start"/>
 
-            <TextView android:visibility="invisible"
-                android:id="@+id/debug"
+            <TextView android:visibility="visible"
+                android:id="@+id/debugView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 app:layout_anchor="@id/mapView"

@@ -19,6 +19,12 @@
             app:cpv_showAlphaSlider="true"/>
 
         <com.jaredrummler.android.colorpicker.ColorPreference
+            android:defaultValue="0x900000FF"
+            android:key="@string/key_color_max_square"
+            android:title="Max square border"
+            app:cpv_showAlphaSlider="true"/>
+
+        <com.jaredrummler.android.colorpicker.ColorPreference
             android:defaultValue="0x90000000"
             android:key="@string/key_color_grid"
             android:title="Grid"
