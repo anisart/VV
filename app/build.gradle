@@ -14,7 +14,7 @@ android {
         applicationId "ru.anisart.vv"
         minSdkVersion 19
         targetSdkVersion 27
-        versionCode 44
+        versionCode 45
         versionName "1.7"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -102,7 +102,7 @@ dependencies {
         exclude group: 'com.android.support'
         exclude module: 'play-services-location'
     }
-    implementation 'com.mapbox.mapboxsdk:mapbox-android-plugin-locationlayer:0.5.3'
+    implementation 'com.mapbox.mapboxsdk:mapbox-android-plugin-locationlayer:0.6.0'
     implementation 'com.google.android.gms:play-services-location:15.0.1'
     //    compile 'com.mapbox.mapboxsdk:mapbox-android-services:2.2.7@aar'
     //    compile 'com.mapbox.mapboxsdk:mapbox-java-services-rx:2.2.7'

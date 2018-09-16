@@ -5,6 +5,9 @@
 -keepattributes EnclosingMethod
 -dontwarn javax.annotation.**
 
+# App classes
+-keep class ru.anisart.vv.** { *; }
+
 # Javascript
 -keepattributes JavascriptInterface
 -keepclassmembers class * {

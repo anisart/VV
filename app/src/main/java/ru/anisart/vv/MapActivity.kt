@@ -23,6 +23,7 @@ import com.mapbox.android.core.location.LocationEngine
 import com.mapbox.android.core.location.LocationEngineListener
 import com.mapbox.android.core.location.LocationEnginePriority
 import com.mapbox.android.core.location.LocationEngineProvider
+import com.mapbox.android.telemetry.TelemetryEnabler
 import com.mapbox.geojson.*
 import com.mapbox.mapboxsdk.annotations.PolygonOptions
 import com.mapbox.mapboxsdk.annotations.PolylineOptions
@@ -88,6 +89,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private val STATE_HEATMAP = "heatmap"
     private val STATE_TARGET_POLYGON = "target_polygon"
 //    private val STATE_ROUTE_POINT = "route_point"
+    private val STATE_LOCATION = "location"
     private val PREFERENCE_CAMERA_POSITION = "camera_position"
 
     @BindString(R.string.key_color_explorer)
@@ -145,6 +147,9 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private var service: TrackingService? = null
     private var mapAllowed = false
     private var locationListenerAdded = false
+    private var location = false
+    private var cameraAtLocation = false
+    private var moveCameraToLocation = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -168,6 +173,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
             heatmap = savedInstanceState.getBoolean(STATE_HEATMAP)
             tagretPolygon = savedInstanceState.getParcelable(STATE_TARGET_POLYGON)
 //            routePoint = savedInstanceState.getParcelable(STATE_ROUTE_POINT)
+            location = savedInstanceState.getBoolean(STATE_LOCATION)
         }
 
         mapView.onCreate(savedInstanceState)
@@ -176,6 +182,9 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         mapView.getMapAsync {
             mapAllowed = true
             map = it
+            map.uiSettings.isAttributionEnabled = false
+            map.uiSettings.isLogoEnabled = false
+            TelemetryEnabler.updateTelemetryState(TelemetryEnabler.State.DISABLED)
             val positionString = preferences.getString(PREFERENCE_CAMERA_POSITION, null)
             positionString?.let {
                 map.cameraPosition = Gson().fromJson(it)
@@ -196,6 +205,9 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                             updateGrid()
                         }
                     }
+                }
+                if (it == MapView.REGION_DID_CHANGE) {
+                    toggleLocationButton(true)
                 }
             }
 
@@ -223,6 +235,11 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 //                routePoint = null
 //                true
 //            }
+
+            if (location) {
+                moveCameraToLocation = false
+                enableMyLocation()
+            }
         }
         receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -245,6 +262,9 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     override fun onStart() {
         super.onStart()
         mapView.onStart()
+        if (this::locationLayerPlugin.isInitialized) {
+            locationLayerPlugin.onStart()
+        }
     }
 
     override fun onResume() {
@@ -273,6 +293,9 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
     override fun onStop() {
         mapView.onStop()
+        if (this::locationLayerPlugin.isInitialized) {
+            locationLayerPlugin.onStop()
+        }
         super.onStop()
     }
 
@@ -283,6 +306,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         outState.putBoolean(STATE_HEATMAP, heatmap)
         outState.putParcelable(STATE_TARGET_POLYGON, tagretPolygon)
 //        outState.putParcelable(STATE_ROUTE_POINT, routePoint)
+        outState.putBoolean(STATE_LOCATION, location)
         mapView.onSaveInstanceState(outState)
         super.onSaveInstanceState(outState)
     }
@@ -367,17 +391,25 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         tagretPolygon?.polygon?.let(map::removePolygon)
         tagretPolygon = null
     }
-
     override fun onLocationChanged(location: Location?) {
         if (location != null) {
-            setCameraPosition(location)
+            if (moveCameraToLocation) {
+                setCameraPosition(location)
+                toggleLocationButton(false)
+            }
             locationEngine.removeLocationEngineListener(this)
             locationListenerAdded = false
+            moveCameraToLocation = true
         }
     }
 
     override fun onConnected() {
         locationEngine.requestLocationUpdates()
+    }
+
+    fun toggleLocationButton(enable: Boolean) {
+        myLocationButton.setImageResource(if (enable) R.drawable.ic_my_location else R.drawable.ic_disable_location)
+        cameraAtLocation = !enable
     }
 
     private fun initMap() {
@@ -538,7 +570,11 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
     @OnClick(R.id.myLocationButton)
     fun onLocationButtonClick() {
-        enableMyLocationWithPermissionCheck()
+        if (location && cameraAtLocation) {
+            disableMyLocation()
+        } else {
+            enableMyLocationWithPermissionCheck()
+        }
     }
 
     @OnClick(R.id.explorerButton)
@@ -626,29 +662,17 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
     @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun enableMyLocation() {
-//        if (map.myLocation != null) {
-//            setCameraPosition(map.myLocation as Location)
-//        } else {
-//            map.setOnMyLocationChangeListener(null)
-//            map.isMyLocationEnabled = true
-//            map.setOnMyLocationChangeListener { location ->
-//                run {
-//                    setCameraPosition(location as Location)
-//                    map.setOnMyLocationChangeListener(null)
-//                }
-//            }
-//
-//        }
-
+        location = true
         if (!this::locationEngine.isInitialized) {
             locationEngine = LocationEngineProvider(this).obtainBestLocationEngineAvailable()
-            locationEngine.priority = LocationEnginePriority.HIGH_ACCURACY
-            locationEngine.activate()
         }
+        locationEngine.priority = LocationEnginePriority.HIGH_ACCURACY
+        locationEngine.activate()
 
         val lastLocation = locationEngine.lastLocation
-        if (lastLocation != null) {
+        if (lastLocation != null && moveCameraToLocation) {
             setCameraPosition(lastLocation)
+            toggleLocationButton(false)
         } else if (!locationListenerAdded) {
             locationListenerAdded = true
             locationEngine.addLocationEngineListener(this)
@@ -656,8 +680,8 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
         if (!this::locationLayerPlugin.isInitialized) {
             locationLayerPlugin = LocationLayerPlugin(mapView, map, locationEngine)
-            locationLayerPlugin.setLocationLayerEnabled(true)
         }
+        locationLayerPlugin.isLocationLayerEnabled = true
     }
 
     @OnPermissionDenied(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -668,6 +692,18 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     @OnNeverAskAgain(Manifest.permission.ACCESS_FINE_LOCATION)
     fun onLocationNeverAskAgain() {
         Toast.makeText(this, "Check permissions for app in System Settings!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun disableMyLocation() {
+        location = false
+        if (this::locationLayerPlugin.isInitialized) {
+            locationLayerPlugin.isLocationLayerEnabled = false
+        }
+        if (this::locationEngine.isInitialized) {
+            locationEngine.removeLocationUpdates()
+            locationEngine.deactivate()
+        }
+        toggleLocationButton(true)
     }
 
     private fun debugInfo() {
