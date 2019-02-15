@@ -33,17 +33,17 @@ import java.util.*
 @RuntimePermissions
 class MainActivity : AppCompatActivity() {
 
-    private var osmandFolder = ""
-    private val explorerDirPath = "tiles/Explorer/14/"
-    private val tileExt = ".png.tile"
-    private val explorerAssetName = "explorer.png"
-    private val clusterAssetName = "cluster.png"
-    private val metaAssetName = "metainfo"
-    private val allRidesFileName = "tracks/VV_all_rides.gpx"
-    private var explorerTiles = HashSet<Tile>()
+    var osmandFolder = ""
+    val explorerDirPath = "tiles/Explorer/14/"
+    val tileExt = ".png.tile"
+    val explorerAssetName = "explorer.png"
+    val clusterAssetName = "cluster.png"
+    val metaAssetName = "metainfo"
+    val allRidesFileName = "tracks/VV_all_rides.gpx"
+    var explorerTiles = HashSet<Tile>()
 
-    private lateinit var preferences: SharedPreferences
-    private lateinit var firebaseAnalytics: FirebaseAnalytics
+    lateinit var preferences: SharedPreferences
+    lateinit var firebaseAnalytics: FirebaseAnalytics
 
     @BindView(R.id.webView)
     lateinit var webView: WebView
