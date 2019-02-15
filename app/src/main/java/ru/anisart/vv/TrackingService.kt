@@ -161,29 +161,29 @@ class TrackingService : Service() {
         notificationManager.notify(SERVICE_ID, notification.build())
     }
 
-    private fun startLocating() {
-        subscription?.dispose()
-        subscription = rxLocation.location().updates(locationRequest)
-                .map(::LatLng)
-                .distinctUntilChanged()
-                .doOnNext{
-                    track.add(it)
-                    val newTile = acquiredTiles.add(latLng2tile(it))
-                    sendBroadcast(Intent(ACTION_TRACK)
-                            .putExtra(EXTRA_NEW_TILE, newTile))
-                    preferences.edit {
-                        putString(PREFERENCE_TRACK, track.toJson())
-                        if (newTile) putString(PREFERENCE_ACQUIRED_TILES, acquiredTiles.toJson())
+        private fun startLocating() {
+            subscription?.dispose()
+            subscription = rxLocation.location().updates(locationRequest)
+                    .map(::LatLng)
+                    .distinctUntilChanged()
+                    .doOnNext{
+                        track.add(it)
+                        val newTile = acquiredTiles.add(latLng2tile(it))
+                        sendBroadcast(Intent(ACTION_TRACK)
+                                .putExtra(EXTRA_NEW_TILE, newTile))
+                        preferences.edit {
+                            putString(PREFERENCE_TRACK, track.toJson())
+                            if (newTile) putString(PREFERENCE_ACQUIRED_TILES, acquiredTiles.toJson())
+                        }
                     }
-                }
-//                .filter { targetBounds!!.contains(it) }
-                .subscribe({
-//                    subscription?.dispose()
-//                    alert()
-                }, {
-                    it.printStackTrace()
-                })
-    }
+    //                .filter { targetBounds!!.contains(it) }
+                    .subscribe({
+    //                    subscription?.dispose()
+    //                    alert()
+                    }, {
+                        it.printStackTrace()
+                    })
+        }
 
     private fun alert() {
         toast("Alert!")
