@@ -86,7 +86,7 @@ class MainActivity : AppCompatActivity() {
 //        return super.onOptionsItemSelected(item)
 //    }
 
-    @SuppressLint("NeedOnRequestPermissionsResult")
+//    @SuppressLint("NeedOnRequestPermissionsResult")
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         onRequestPermissionsResult(requestCode, grantResults)
