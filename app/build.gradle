@@ -8,12 +8,11 @@ androidExtensions {
 }
 
 android {
-    compileSdkVersion 27
-    buildToolsVersion '27.0.3'
+    compileSdkVersion 28
     defaultConfig {
         applicationId "ru.anisart.vv"
         minSdkVersion 19
-        targetSdkVersion 27
+        targetSdkVersion 28
         versionCode 45
         versionName "1.7"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
@@ -99,18 +98,17 @@ dependencies {
     implementation "com.android.support:appcompat-v7:$support_version"
     implementation "com.android.support:design:$support_version"
     implementation 'com.github.dmytrodanylyk.android-process-button:library:1.0.4'
-    implementation 'com.jakewharton:butterknife:8.8.1'
-    kapt "com.jakewharton:butterknife-compiler:8.8.1"
-    implementation 'com.github.codekidX:storage-chooser:2.0.3', {
+    implementation "com.jakewharton:butterknife:$butterknife_version"
+    kapt "com.jakewharton:butterknife-compiler:$butterknife_version"
+    implementation 'com.github.codekidX:storage-chooser:2.0.4.4', {
         exclude group: 'com.android.support'
     }
-    implementation 'com.mapbox.mapboxsdk:mapbox-android-sdk:6.2.1@aar', {
+    implementation 'com.mapbox.mapboxsdk:mapbox-android-sdk:7.2.0@aar', {
         transitive = true
         exclude group: 'com.android.support'
         exclude module: 'play-services-location'
     }
-    implementation 'com.mapbox.mapboxsdk:mapbox-android-plugin-locationlayer:0.6.0'
-    implementation 'com.google.android.gms:play-services-location:15.0.1'
+    implementation 'com.google.android.gms:play-services-location:16.0.0'
     //    compile 'com.mapbox.mapboxsdk:mapbox-android-services:2.2.7@aar'
     //    compile 'com.mapbox.mapboxsdk:mapbox-java-services-rx:2.2.7'
     //    compile 'com.mapbox.mapboxsdk:mapbox-android-directions:1.0.0@aar'
@@ -118,15 +116,15 @@ dependencies {
     implementation "com.squareup.retrofit2:retrofit:$retrofit_version"
     implementation "com.squareup.retrofit2:converter-gson:$retrofit_version"
     implementation "com.squareup.retrofit2:adapter-rxjava2:$retrofit_version"
-    implementation 'io.reactivex.rxjava2:rxandroid:2.0.2'
-    implementation 'io.reactivex.rxjava2:rxjava:2.1.16'
-    implementation 'io.reactivex.rxjava2:rxkotlin:2.2.0'
-    implementation 'com.squareup.okhttp3:logging-interceptor:3.10.0'
-    implementation 'com.jaredrummler:colorpicker:1.0.2'
+    implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
+    implementation 'io.reactivex.rxjava2:rxjava:2.2.8'
+    implementation 'io.reactivex.rxjava2:rxkotlin:2.3.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:3.14.0'
+    implementation 'com.jaredrummler:colorpicker:1.1.0'
     implementation 'com.github.clans:fab:1.6.4'
-    implementation 'org.jetbrains.anko:anko-commons:0.10.5'
+    implementation 'org.jetbrains.anko:anko-commons:0.10.8'
     implementation 'com.patloew.rxlocation:rxlocation:1.0.5'
-    implementation 'com.google.firebase:firebase-core:16.0.1'
+    implementation 'com.google.firebase:firebase-core:16.0.8'
 }
 repositories {
     jcenter()
