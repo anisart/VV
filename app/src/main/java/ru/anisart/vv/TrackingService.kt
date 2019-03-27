@@ -1,6 +1,7 @@
 package ru.anisart.vv
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -110,6 +111,9 @@ class TrackingService : Service() {
     override fun onBind(intent: Intent?) = binder
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!checkPermission()) {
+            return START_NOT_STICKY
+        }
         System.err.println("onStartCommand " + Date().toString())
         sendBroadcast(Intent(ACTION_START))
         resume()
@@ -161,6 +165,7 @@ class TrackingService : Service() {
         notificationManager.notify(SERVICE_ID, notification.build())
     }
 
+    @SuppressLint("MissingPermission")
     private fun startLocating() {
         subscription?.dispose()
         subscription = rxLocation.location().updates(locationRequest)

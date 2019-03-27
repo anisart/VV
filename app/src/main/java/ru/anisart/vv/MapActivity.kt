@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.*
-import android.graphics.Color
 import android.location.Location
 import android.os.Build
 import android.os.Bundle
@@ -26,11 +25,9 @@ import com.mapbox.android.core.location.LocationEngineProvider
 import com.mapbox.android.telemetry.TelemetryEnabler
 import com.mapbox.geojson.*
 import com.mapbox.mapboxsdk.annotations.PolygonOptions
-import com.mapbox.mapboxsdk.annotations.PolylineOptions
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.constants.Style
 import com.mapbox.mapboxsdk.geometry.LatLng
-import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import com.mapbox.mapboxsdk.maps.MapView
 import com.mapbox.mapboxsdk.maps.MapboxMap
 import com.mapbox.mapboxsdk.plugins.locationlayer.LocationLayerPlugin
@@ -42,6 +39,7 @@ import com.mapbox.mapboxsdk.style.sources.Source
 import com.mapbox.mapboxsdk.style.sources.TileSet
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.Disposable
 import io.reactivex.rxkotlin.toObservable
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_map.*
@@ -141,7 +139,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private var grid = false
     private var heatmap = false
     private var tagretPolygon: PolygonOptions? = null
-    private var routeLine: PolylineOptions? = null
+//    private var routeLine: PolylineOptions? = null
 //    private var routePoint: LatLng? = null
     private var onMapInitObservable: Observable<Any>? = null
     private var service: TrackingService? = null
@@ -150,6 +148,12 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private var location = false
     private var cameraAtLocation = false
     private var moveCameraToLocation = true
+
+    private var onMapInitDisposable: Disposable? = null
+    private var tilesDisposable: Disposable? = null
+    private var maxSquareDisposable: Disposable? = null
+    private var ridesDisposable: Disposable? = null
+    private var trackingTilesDisposable: Disposable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -180,21 +184,21 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         val style = preferences.getString(mapKey, "")
         mapView.setStyleUrl(style)
         mapView.getMapAsync {
-            mapAllowed = true
             map = it
+            mapAllowed = true
             map.uiSettings.isAttributionEnabled = false
             map.uiSettings.isLogoEnabled = false
             TelemetryEnabler.updateTelemetryState(TelemetryEnabler.State.DISABLED)
             val positionString = preferences.getString(PREFERENCE_CAMERA_POSITION, null)
-            positionString?.let {
-                map.cameraPosition = Gson().fromJson(it)
+            positionString?.let { s ->
+                map.cameraPosition = Gson().fromJson(s)
             }
             initMap()
-            onMapInitObservable?.subscribe()
+            onMapInitDisposable = onMapInitObservable?.subscribe()
 //            routePoint?.let(this::route)
 
-            mapView.addOnMapChangedListener {
-                when (it) {
+            mapView.addOnMapChangedListener { event ->
+                when (event) {
                     MapView.REGION_DID_CHANGE,
                     MapView.REGION_DID_CHANGE_ANIMATED,
                     MapView.DID_FINISH_LOADING_MAP -> {
@@ -206,7 +210,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                         }
                     }
                 }
-                if (it == MapView.REGION_DID_CHANGE) {
+                if (event == MapView.REGION_DID_CHANGE) {
                     toggleLocationButton(true)
                 }
             }
@@ -245,7 +249,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.action) {
                     TrackingService.ACTION_START ->
-                        bindService(Intent(this@MapActivity, TrackingService::class.java), this@MapActivity, 0)
+                        applicationContext.bindService(Intent(this@MapActivity, TrackingService::class.java), this@MapActivity, 0)
                     TrackingService.ACTION_TRACK ->
                         updateTracking(intent.getBooleanExtra(TrackingService.EXTRA_NEW_TILE, false))
                 }
@@ -272,19 +276,26 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         mapView.onResume()
         preferences.registerOnSharedPreferenceChangeListener(this)
         registerReceiver(receiver, intentFilter(TrackingService.ACTION_START, TrackingService.ACTION_TRACK))
-        onMapInitObservable?.subscribe()
+        onMapInitDisposable = onMapInitObservable?.subscribe()
         if (onMapInitObservable == null) onMapInitObservable = onMapInitObservable ?: Observable.just(Any())
-                    .doOnNext { bindService(Intent(this, TrackingService::class.java), this, 0) }
+                    .doOnNext { applicationContext.bindService(Intent(this, TrackingService::class.java), this, 0) }
     }
 
     override fun onPause() {
+        onMapInitDisposable?.dispose()
+        tilesDisposable?.dispose()
+        maxSquareDisposable?.dispose()
+        ridesDisposable?.dispose()
+        trackingTilesDisposable?.dispose()
         if (mapAllowed) {
             val positionString = map.cameraPosition.toJson()
             preferences.edit().putString(PREFERENCE_CAMERA_POSITION, positionString).apply()
         }
         tagretPolygon?.polygon?.let(map::removePolygon)
         tagretPolygon = null
-        unbindService(this)
+        if (service != null) {
+            applicationContext.unbindService(this)
+        }
         unregisterReceiver(receiver)
         preferences.unregisterOnSharedPreferenceChangeListener(this)
         mapView.onPause()
@@ -375,7 +386,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                     "Google Play Services have been enabled. Try again!"
                 else
                     "Google Play Services has not been enabled. Tracking functionality is not available!")
-            SYNC_SETTINGS_REQUEST -> if (resultCode == Activity.RESULT_OK) updateTilesAndRidesAndHeatmap()
+            SYNC_SETTINGS_REQUEST -> if (resultCode == Activity.RESULT_OK && mapAllowed) updateTilesAndRidesAndHeatmap()
             else -> super.onActivityResult(requestCode, resultCode, data)
         }
     }
@@ -404,10 +415,16 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     override fun onConnected() {
+        requestLocationUpdatesWithPermissionCheck()
+    }
+
+    @SuppressLint("MissingPermission")
+    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+    fun requestLocationUpdates() {
         locationEngine.requestLocationUpdates()
     }
 
-    fun toggleLocationButton(enable: Boolean) {
+    private fun toggleLocationButton(enable: Boolean) {
         myLocationButton.setImageResource(if (enable) R.drawable.ic_my_location else R.drawable.ic_disable_location)
         cameraAtLocation = !enable
     }
@@ -426,7 +443,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
             map.removeSource(it)
         }
 
-        Observable
+        tilesDisposable = Observable
                 .just(preferences)
                 .map { it.getString(App.PREFERENCE_TILES, null) }
                 .map { Gson().fromJson(it) ?: HashSet<Tile>() }
@@ -455,10 +472,10 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                     it.printStackTrace()
                 })
 
-        Observable
+        maxSquareDisposable = Observable
                 .just(preferences)
                 .map { it.getString(App.PREFERENCE_MAX_SQUARES, null) }
-                .map { Gson().fromJson<List<MaxSquare>>(it) ?: listOf() }
+                .map { Gson().fromJson<List<MaxSquare>>(it) }
                 .filter { it.isNotEmpty() }
                 .flatMapIterable { it }
                 .map {
@@ -486,7 +503,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                     it.printStackTrace()
                 })
 
-        Observable
+        ridesDisposable = Observable
                 .just(preferences)
                 .map { it.getString(App.PREFERENCE_RIDES_JSON, null) }
                 .filter { it.isNotEmpty() }
@@ -579,6 +596,8 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
     @OnClick(R.id.explorerButton)
     fun onExplorerButtonClick() {
+        if (!mapAllowed) return
+
         val layer = map.getLayer(EXPLORER_LAYER_ID)
         if (layer != null) {
             explorer = !explorer
@@ -593,6 +612,8 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
     @OnClick(R.id.ridesButton)
     fun onRidesButtonClick() {
+        if (!mapAllowed) return
+
         val layer = map.getLayer(RIDES_LAYER_ID)
         if (layer != null) {
             rides = !rides
@@ -605,6 +626,8 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
     @OnClick(R.id.gridButton)
     fun onGridButtonClick() {
+        if (!mapAllowed) return
+
         val layer = map.getLayer(GRID_LAYER_ID)
         if (layer != null) {
             grid = !grid
@@ -618,6 +641,8 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
     @OnClick(R.id.heatmapButton)
     fun onHeatmapButtonClick() {
+        if (!mapAllowed) return
+
         map.getLayer(HEATMAP_LAYER_ID)?.let {
             heatmap = !heatmap
             it.setProperties(PropertyFactory.visibility(
@@ -660,6 +685,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                 LatLng(location.latitude, location.longitude), CAMERA_ZOOM))
     }
 
+    @SuppressLint("MissingPermission")
     @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun enableMyLocation() {
         location = true
@@ -706,6 +732,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         toggleLocationButton(true)
     }
 
+    @SuppressLint("SetTextI18n")
     private fun debugInfo() {
         debugView.text = "z = %.2f, lat = %.2f, lon = %.2f".format(
                 Locale.US,
@@ -749,7 +776,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                     Point.fromLngLat(it.longitude, it.latitude)
                 }.toList()))
         if (newTile) {
-            service!!.acquiredTiles.toObservable()
+            trackingTilesDisposable = service!!.acquiredTiles.toObservable()
                     .map {
                         val bbox = tile2bbox(it.x, it.y)
                         Feature.fromGeometry(Polygon.fromLngLats(
@@ -836,18 +863,18 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         sendBroadcast(Intent(TrackingService.ACTION_STOP))
     }
 
-    private fun drawTargetTile(bounds: LatLngBounds) {
-        tagretPolygon?.polygon?.let(map::removePolygon)
-        tagretPolygon = PolygonOptions()
-                .add(bounds.northWest)
-                .add(bounds.northEast)
-                .add(bounds.southEast)
-                .add(bounds.southWest)
-                .add(bounds.northWest)
-                .fillColor(Color.MAGENTA)
-                .alpha(0.3f)
-        tagretPolygon?.let(map::addPolygon)
-    }
+//    private fun drawTargetTile(bounds: LatLngBounds) {
+//        tagretPolygon?.polygon?.let(map::removePolygon)
+//        tagretPolygon = PolygonOptions()
+//                .add(bounds.northWest)
+//                .add(bounds.northEast)
+//                .add(bounds.southEast)
+//                .add(bounds.southWest)
+//                .add(bounds.northWest)
+//                .fillColor(Color.MAGENTA)
+//                .alpha(0.3f)
+//        tagretPolygon?.let(map::addPolygon)
+//    }
 
 //    private fun route(point: LatLng) {
 //        routeLine?.polyline?.let(map::removePolyline)

@@ -1,7 +1,6 @@
 package ru.anisart.vv
 
 import android.content.SharedPreferences
-import android.graphics.Color
 import android.os.Bundle
 import android.preference.PreferenceFragment
 import android.view.LayoutInflater
@@ -58,8 +57,7 @@ class StyleSettingsFragment : PreferenceFragment(), SharedPreferences.OnSharedPr
     private fun updatePreference(preference: Preference?) {
         preference ?: return
         if (preference is ListPreference) {
-            val listPreference = preference
-            listPreference.summary = listPreference.entry
+            preference.summary = preference.entry
             return
         }
     }
