@@ -7,10 +7,10 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.Environment
 import android.preference.PreferenceManager
-import android.support.v7.app.AppCompatActivity
 import android.webkit.*
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import butterknife.BindView
 import butterknife.ButterKnife
 import butterknife.OnClick
@@ -23,14 +23,14 @@ import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.toObservable
 import io.reactivex.schedulers.Schedulers
-import permissions.dispatcher.NeedsPermission
-import permissions.dispatcher.OnNeverAskAgain
-import permissions.dispatcher.OnPermissionDenied
-import permissions.dispatcher.RuntimePermissions
+//import permissions.dispatcher.NeedsPermission
+//import permissions.dispatcher.OnNeverAskAgain
+//import permissions.dispatcher.OnPermissionDenied
+//import permissions.dispatcher.RuntimePermissions
 import java.io.*
 import java.util.*
 
-@RuntimePermissions
+//@RuntimePermissions
 class MainActivity : AppCompatActivity() {
 
     private var osmandFolder = ""
@@ -86,26 +86,26 @@ class MainActivity : AppCompatActivity() {
 //        return super.onOptionsItemSelected(item)
 //    }
 
-    @SuppressLint("NeedOnRequestPermissionsResult")
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        onRequestPermissionsResult(requestCode, grantResults)
-    }
+//    @SuppressLint("NeedOnRequestPermissionsResult")
+//    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+//        onRequestPermissionsResult(requestCode, grantResults)
+//    }
 
-    @OnPermissionDenied(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-    fun onStoragePermissionDenied() {
-        Toast.makeText(this, "Permission is required to create tiles for OsmAnd!", Toast.LENGTH_SHORT).show()
-    }
-
-    @OnNeverAskAgain(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-    fun onStorageNeverAskAgain() {
-        Toast.makeText(this, "Check permissions for app in System Settings!", Toast.LENGTH_SHORT).show()
-    }
-
-    @OnClick(R.id.osmandBtn)
-    fun onOsmandButtonClick() {
-        selectOsmandFolderWithPermissionCheck()
-    }
+//    @OnPermissionDenied(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+//    fun onStoragePermissionDenied() {
+//        Toast.makeText(this, "Permission is required to create tiles for OsmAnd!", Toast.LENGTH_SHORT).show()
+//    }
+//
+//    @OnNeverAskAgain(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+//    fun onStorageNeverAskAgain() {
+//        Toast.makeText(this, "Check permissions for app in System Settings!", Toast.LENGTH_SHORT).show()
+//    }
+//
+//    @OnClick(R.id.osmandBtn)
+//    fun onOsmandButtonClick() {
+//        selectOsmandFolderWithPermissionCheck()
+//    }
 
     @OnClick(R.id.updateBtn)
     fun onUpdateClick() {
@@ -113,18 +113,18 @@ class MainActivity : AppCompatActivity() {
         setResult(Activity.RESULT_OK)
     }
 
-    @OnClick(R.id.recreateBtn)
-    fun onRecleateButtonClick() {
-        osmandFolder = preferences.getString(DiskUtil.SC_PREFERENCE_KEY, "")
-        if (osmandFolder.isEmpty()) {
-//            Toast.makeText(this, "You need select OsmAnd data folder!", Toast.LENGTH_SHORT).show()
-//            return
-            setupWebviewForExplorer()
-        } else {
-            setupWebviewForExplorerWithPermissionCheck()
-        }
-        setResult(Activity.RESULT_OK)
-    }
+//    @OnClick(R.id.recreateBtn)
+//    fun onRecleateButtonClick() {
+//        osmandFolder = preferences.getString(DiskUtil.SC_PREFERENCE_KEY, "")
+//        if (osmandFolder.isEmpty()) {
+////            Toast.makeText(this, "You need select OsmAnd data folder!", Toast.LENGTH_SHORT).show()
+////            return
+//            setupWebviewForExplorer()
+//        } else {
+//            setupWebviewForExplorerWithPermissionCheck()
+//        }
+//        setResult(Activity.RESULT_OK)
+//    }
 
 //    @OnClick(R.id.mapBtn)
 //    fun onMapButtonClick(v: View) {
@@ -264,80 +264,80 @@ class MainActivity : AppCompatActivity() {
         preferences.edit { putString(App.PREFERENCE_RIDES_JSON, json) }
     }
 
-    @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-    fun selectOsmandFolder() {
-        val chooser = StorageChooser.Builder()
-                .withActivity(this)
-                .withFragmentManager(fragmentManager)
-                .allowCustomPath(true)
-                .setType(StorageChooser.DIRECTORY_CHOOSER)
-                .actionSave(true)
-                .withPreference(preferences)
-                .build()
+//    @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+//    fun selectOsmandFolder() {
+//        val chooser = StorageChooser.Builder()
+//                .withActivity(this)
+//                .withFragmentManager(fragmentManager)
+//                .allowCustomPath(true)
+//                .setType(StorageChooser.DIRECTORY_CHOOSER)
+//                .actionSave(true)
+//                .withPreference(preferences)
+//                .build()
+//
+//        // Show dialog whenever you want by
+//        chooser.show()
+//
+//        // get path that the user has chosen
+//        chooser.setOnSelectListener { path -> Toast.makeText(this, path, Toast.LENGTH_SHORT).show() }
+//    }
 
-        // Show dialog whenever you want by
-        chooser.show()
-
-        // get path that the user has chosen
-        chooser.setOnSelectListener { path -> Toast.makeText(this, path, Toast.LENGTH_SHORT).show() }
-    }
-
-    @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-    fun setupWebviewForExplorer() {
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                view?.loadUrl(url)
-                return true
-            }
-
-            override fun onPageFinished(view: WebView?, url: String?) {
-                if (url == null || !url.contains("veloviewer.com/\\S*activities".toRegex())) {
-                    webView.setOnTouchListener(null)
-                    return
-                }
-                webView.setOnTouchListener { _, _ -> true }  // DISABLE TOUCH
-                view?.loadUrl("""javascript:
-                    |var togpx;
-                    |var script = document.createElement("script");
-                    |script.setAttribute("type", "text/javascript");
-                    |script.setAttribute("src", "https://cdn.jsdelivr.net/npm/togpx@0.5.4/togpx.js");
-                    |document.getElementsByTagName("head")[0].appendChild(script);
-
-                    |function wait(condition, callback) {
-                    |    if (typeof condition() !== "undefined") {
-                    |        callback();
-                    |    } else {
-                    |        setTimeout(function () {
-                    |            wait(condition, callback);
-                    |        }, 0)
-                    |    }
-                    |}
-
-                    |document.getElementById('viewMapCheckBox').click();
-                    |document.getElementById('viewMapCheckBox').click();
-                    |var collection = { "type": "FeatureCollection", "features": [] };
-                    |liveData.forEach( function(d, i) { if (d.ll != null) collection.features.push(d.ll.toGeoJSON()); } );
-                    |window.JSInterface.setAllRidesJson(JSON.stringify(collection));
-                    |window.JSInterface.setRidesCount(String(collection.features.length));
-                    |wait( function() { return togpx; }, function() {
-                    |   window.JSInterface.setAllRidesGpx(togpx(collection));
-                    |});
-                    |wait( function() { return window.maxClump; }, function() {
-                    |    window.JSInterface.setExplorerTiles(Object.keys(window.explorerTiles), Object.keys(window.maxClump));
-                    |    window.JSInterface.setMaxSquares(JSON.stringify(window.explorerMaxs.map( function(max) {
-                    |       square = {};
-                    |       square.x = max.x;
-                    |       square.y = max.y;
-                    |       square.size = max.size;
-                    |       return square;
-                    |   })));
-                    |});"""
-                        .trimMargin())
-            }
-        }
-        CookieManager.getInstance().setCookie(".veloviewer.com", "ExplorerMaxSquareShown=1")
-        webView.loadUrl("https://veloviewer.com/activities")
-    }
+//    @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+//    fun setupWebviewForExplorer() {
+//        webView.webViewClient = object : WebViewClient() {
+//            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+//                view?.loadUrl(url)
+//                return true
+//            }
+//
+//            override fun onPageFinished(view: WebView?, url: String?) {
+//                if (url == null || !url.contains("veloviewer.com/\\S*activities".toRegex())) {
+//                    webView.setOnTouchListener(null)
+//                    return
+//                }
+//                webView.setOnTouchListener { _, _ -> true }  // DISABLE TOUCH
+//                view?.loadUrl("""javascript:
+//                    |var togpx;
+//                    |var script = document.createElement("script");
+//                    |script.setAttribute("type", "text/javascript");
+//                    |script.setAttribute("src", "https://cdn.jsdelivr.net/npm/togpx@0.5.4/togpx.js");
+//                    |document.getElementsByTagName("head")[0].appendChild(script);
+//
+//                    |function wait(condition, callback) {
+//                    |    if (typeof condition() !== "undefined") {
+//                    |        callback();
+//                    |    } else {
+//                    |        setTimeout(function () {
+//                    |            wait(condition, callback);
+//                    |        }, 0)
+//                    |    }
+//                    |}
+//
+//                    |document.getElementById('viewMapCheckBox').click();
+//                    |document.getElementById('viewMapCheckBox').click();
+//                    |var collection = { "type": "FeatureCollection", "features": [] };
+//                    |liveData.forEach( function(d, i) { if (d.ll != null) collection.features.push(d.ll.toGeoJSON()); } );
+//                    |window.JSInterface.setAllRidesJson(JSON.stringify(collection));
+//                    |window.JSInterface.setRidesCount(String(collection.features.length));
+//                    |wait( function() { return togpx; }, function() {
+//                    |   window.JSInterface.setAllRidesGpx(togpx(collection));
+//                    |});
+//                    |wait( function() { return window.maxClump; }, function() {
+//                    |    window.JSInterface.setExplorerTiles(Object.keys(window.explorerTiles), Object.keys(window.maxClump));
+//                    |    window.JSInterface.setMaxSquares(JSON.stringify(window.explorerMaxs.map( function(max) {
+//                    |       square = {};
+//                    |       square.x = max.x;
+//                    |       square.y = max.y;
+//                    |       square.size = max.size;
+//                    |       return square;
+//                    |   })));
+//                    |});"""
+//                        .trimMargin())
+//            }
+//        }
+//        CookieManager.getInstance().setCookie(".veloviewer.com", "ExplorerMaxSquareShown=1")
+//        webView.loadUrl("https://veloviewer.com/activities")
+//    }
 
     private fun setupWebviewForHeatmap() {
         webView.webViewClient = object : WebViewClient() {
@@ -399,11 +399,11 @@ class MainActivity : AppCompatActivity() {
                 ?.let { it[1] }
     }
 
-    @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-    fun mockRecreateTilesAndRides() {
-        osmandFolder = Environment.getExternalStorageDirectory().absolutePath
-        setAllRidesGpx(Mock.instance.geojson)
-        setAllRidesJson(Mock.instance.geojson)
-        setExplorerTiles(Mock.instance.explorerTiles, Mock.instance.clusterTiles)
-    }
+//    @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+//    fun mockRecreateTilesAndRides() {
+//        osmandFolder = Environment.getExternalStorageDirectory().absolutePath
+//        setAllRidesGpx(Mock.instance.geojson)
+//        setAllRidesJson(Mock.instance.geojson)
+//        setExplorerTiles(Mock.instance.explorerTiles, Mock.instance.clusterTiles)
+//    }
 }

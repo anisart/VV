@@ -1,16 +1,17 @@
 package ru.anisart.vv;
 
 import android.content.Context;
-import android.support.design.widget.CoordinatorLayout;
-import android.support.design.widget.Snackbar;
-import android.support.v4.view.ViewCompat;
-import android.support.v4.view.ViewPropertyAnimatorListener;
 import android.util.AttributeSet;
 import android.view.View;
 
 import com.github.clans.fab.FloatingActionMenu;
+import com.google.android.material.snackbar.Snackbar;
 
 import java.util.List;
+
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.ViewPropertyAnimatorListener;
 
 /**
  * Created by Matteo on 08/08/2015.

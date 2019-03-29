@@ -38,7 +38,6 @@
         <item>Satellite</item>
         <item>Satellite streets</item>
     </string-array>
-    <string name="mapbox_style_outdoors" tools:override="true">mapbox://styles/mapbox/outdoors-v10</string>
     <string name="mapbox_style_bright">mapbox://styles/mapbox/bright-v9</string>
     <string-array name="map_style_values">
         <item>@string/mapbox_style_mapbox_streets</item>

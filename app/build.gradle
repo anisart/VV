@@ -17,6 +17,7 @@ android {
         versionName "1.7"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+        multiDexEnabled true
     }
     signingConfigs {
         debug {}
@@ -90,13 +91,6 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     //    compile "org.jetbrains.kotlin:kotlin-android-extensions-runtime:$kotlin_version"
-    implementation "com.github.hotchemi:permissionsdispatcher:$permission_dispatcher_version", {
-        // if you don't use android.app.Fragment you can exclude support for them
-        exclude module: "support-v13"
-    }
-    kapt "com.github.hotchemi:permissionsdispatcher-processor:$permission_dispatcher_version"
-    implementation "com.android.support:appcompat-v7:$support_version"
-    implementation "com.android.support:design:$support_version"
     implementation 'com.github.dmytrodanylyk.android-process-button:library:1.0.4'
     implementation "com.jakewharton:butterknife:$butterknife_version"
     kapt "com.jakewharton:butterknife-compiler:$butterknife_version"
@@ -125,12 +119,13 @@ dependencies {
     implementation 'org.jetbrains.anko:anko-commons:0.10.8'
     implementation 'com.patloew.rxlocation:rxlocation:1.0.5'
     implementation 'com.google.firebase:firebase-core:16.0.8'
+    implementation 'androidx.preference:preference:1.1.0-alpha04'
 }
 repositories {
     jcenter()
     mavenCentral()
-    maven { url "https://jitpack.io" }
     maven { url 'https://maven.google.com' }
+    maven { url "https://jitpack.io" }
 }
 
 def reportsDirectory = "$buildDir/reports/androidTests/connected"

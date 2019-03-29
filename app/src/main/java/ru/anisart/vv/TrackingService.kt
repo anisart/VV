@@ -14,8 +14,8 @@ import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.preference.PreferenceManager
-import android.support.annotation.RequiresApi
-import android.support.v4.app.NotificationCompat
+import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.LocationRequest
 import com.google.gson.Gson
 import com.mapbox.mapboxsdk.geometry.LatLng
