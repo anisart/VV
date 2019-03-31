@@ -77,9 +77,6 @@ android {
     lintOptions {
         abortOnError false
     }
-    adbOptions {
-        installOptions '-g', '-r'
-    }
 }
 
 dependencies {
