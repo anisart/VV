@@ -11,7 +11,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
-import ru.anisart.vv.util.ScreenshotTakingRule
 
 @RunWith(AndroidJUnit4::class)
 class MainActivityTest {
@@ -22,7 +21,6 @@ class MainActivityTest {
     @Rule
     val ruleChain: RuleChain = RuleChain
             .outerRule(activityRule)
-            .around(ScreenshotTakingRule())
 
     @Before
     fun startUp() {

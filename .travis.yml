@@ -1,7 +1,11 @@
 language: android
 jdk: oraclejdk8
 env:
+  matrix:
+  - ANDROID_TARGET=android-19 ANDROID_ABI=armeabi-v7a
+  - ANDROID_TARGET=android-21 ANDROID_ABI=armeabi-v7a
   global:
+  - ADB_INSTALL_TIMEOUT=10
   - ANDROID_API_LEVEL=27
   - ANDROID_BUILD_TOOLS_VERSION=27.0.3
 android:
@@ -20,15 +24,22 @@ android:
   - extra-google-google_play_services
   - extra-google-m2repository
   - extra-android-m2repository
-  - addon-google_apis-google-$ANDROID_API_LEVEL
-  - android-19
   - sys-img-armeabi-v7a-android-19
-before_install:
-- chmod +x gradlew
+  - sys-img-armeabi-v7a-android-21
+before_cache:
+- rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
+cache:
+  directories:
+  - $HOME/.gradle/daemon
+  - $HOME/.gradle/native
+  - $HOME/.gradle/wrapper
 before_script:
-- echo no | android create avd --force -n test -t android-19 --abi armeabi-v7a
+- chmod +x gradlew
+- android list targets
+- echo no | android create avd --force --name test --target $ANDROID_TARGET --abi $ANDROID_ABI
 - emulator -avd test -no-skin -no-audio -no-window &
-- android-wait-for-emulator
-- adb shell input keyevent 82 &
 script:
+- android-wait-for-emulator
+- adb devices
+- adb shell input keyevent 82 &
 - ./gradlew testDebugUnitTest connectedDebugAndroidTest
