@@ -1,9 +1,11 @@
 package ru.anisart.vv
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.*
 import android.location.Location
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.widget.Toast
@@ -16,13 +18,17 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.gson.Gson
-import com.mapbox.android.core.location.LocationEngine
+import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.android.telemetry.TelemetryEnabler
 import com.mapbox.geojson.*
-import com.mapbox.mapboxsdk.annotations.PolygonOptions
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.geometry.LatLng
+import com.mapbox.mapboxsdk.location.LocationComponentActivationOptions
+import com.mapbox.mapboxsdk.location.LocationComponentOptions
+import com.mapbox.mapboxsdk.location.modes.CameraMode
+import com.mapbox.mapboxsdk.location.modes.RenderMode
 import com.mapbox.mapboxsdk.maps.MapboxMap
+import com.mapbox.mapboxsdk.maps.OnMapReadyCallback
 import com.mapbox.mapboxsdk.maps.Style
 import com.mapbox.mapboxsdk.style.expressions.Expression.*
 import com.mapbox.mapboxsdk.style.layers.*
@@ -38,16 +44,17 @@ import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_map.*
 import org.jetbrains.anko.selector
 import org.jetbrains.anko.toast
-//import permissions.dispatcher.NeedsPermission
-//import permissions.dispatcher.OnNeverAskAgain
-//import permissions.dispatcher.OnPermissionDenied
-//import permissions.dispatcher.RuntimePermissions
+import permissions.dispatcher.NeedsPermission
+import permissions.dispatcher.OnNeverAskAgain
+import permissions.dispatcher.OnPermissionDenied
+import permissions.dispatcher.RuntimePermissions
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 
+@RuntimePermissions
 class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceChangeListener,
-        ServiceConnection {
+        ServiceConnection, OnMapReadyCallback {
 
     private val CAMERA_ZOOM = 14.0
     private val BELOW_LAYER = "waterway-label"
@@ -77,8 +84,6 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private val STATE_RIDES = "rides"
     private val STATE_GRID = "grid"
     private val STATE_HEATMAP = "heatmap"
-    private val STATE_TARGET_POLYGON = "target_polygon"
-//    private val STATE_ROUTE_POINT = "route_point"
     private val STATE_LOCATION = "location"
     private val PREFERENCE_CAMERA_POSITION = "camera_position"
 
@@ -119,7 +124,6 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     lateinit var styleSettingsString: String
 
     private lateinit var map: MapboxMap
-    private lateinit var locationEngine: LocationEngine
     private lateinit var preferences: SharedPreferences
     private lateinit var settingsFragment: StyleSettingsFragment
     private lateinit var receiver: BroadcastReceiver
@@ -129,16 +133,11 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private var rides = false
     private var grid = false
     private var heatmap = false
-    private var tagretPolygon: PolygonOptions? = null
-//    private var routeLine: PolylineOptions? = null
-//    private var routePoint: LatLng? = null
     private var onMapInitObservable: Observable<Any>? = null
     private var service: TrackingService? = null
     private var mapAllowed = false
-    private var locationListenerAdded = false
     private var location = false
     private var cameraAtLocation = false
-    private var moveCameraToLocation = true
 
     private var onMapInitDisposable: Disposable? = null
     private var tilesDisposable: Disposable? = null
@@ -166,71 +165,11 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
             rides = savedInstanceState.getBoolean(STATE_RIDES)
             grid = savedInstanceState.getBoolean(STATE_GRID)
             heatmap = savedInstanceState.getBoolean(STATE_HEATMAP)
-            tagretPolygon = savedInstanceState.getParcelable(STATE_TARGET_POLYGON)
-//            routePoint = savedInstanceState.getParcelable(STATE_ROUTE_POINT)
             location = savedInstanceState.getBoolean(STATE_LOCATION)
         }
 
         mapView.onCreate(savedInstanceState)
-        mapView.getMapAsync {
-            map = it
-            mapAllowed = true
-            map.uiSettings.isAttributionEnabled = false
-            map.uiSettings.isLogoEnabled = false
-            TelemetryEnabler.updateTelemetryState(TelemetryEnabler.State.DISABLED)
-            val positionString = preferences.getString(PREFERENCE_CAMERA_POSITION, null)
-            positionString?.let { s ->
-                map.cameraPosition = Gson().fromJson(s)
-            }
-            val styleString = preferences.getString(mapKey, Style.OUTDOORS)
-            map.setStyle(styleString) {style ->
-                initMap(style)
-            }
-            onMapInitDisposable = onMapInitObservable?.subscribe()
-//            routePoint?.let(this::route)
-
-            mapView.addOnCameraDidChangeListener {
-                if (BuildConfig.DEBUG) {
-                    debugInfo()
-                }
-                if (grid) {
-                    updateGrid()
-                }
-//                toggleLocationButton(true)
-            }
-
-            map.addOnMapClickListener {
-                if (!settingsFragment.isHidden) {
-                    showSettings(false)
-                    return@addOnMapClickListener true
-                }
-                return@addOnMapClickListener false
-            }
-
-//            map.setOnMapLongClickListener {
-//                val actions = listOf("Alert", "Route")
-//                selector("Lat %.3f Lon %.3f".format(Locale.US, it.latitude, it.longitude), actions,
-//                        { _, i ->
-//                            when (i) {
-//                                0 -> alertTileWithPermissionCheck(it)
-//                                1 -> route(it)
-//                            }
-//                        })
-//            }
-
-//            map.setOnInfoWindowClickListener {
-//                routeLine?.polyline?.let(map::removePolyline)
-//                map.removeMarker(it)
-//                routeLine = null
-//                routePoint = null
-//                true
-//            }
-
-            if (location) {
-                moveCameraToLocation = false
-//                enableMyLocation()
-            }
-        }
+        mapView.getMapAsync(this)
         receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.action) {
@@ -246,15 +185,11 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
-        System.err.println(intent.toString())
     }
 
     override fun onStart() {
         super.onStart()
         mapView.onStart()
-//        if (this::locationLayerPlugin.isInitialized) {
-//            locationLayerPlugin.onStart()
-//        }
     }
 
     override fun onResume() {
@@ -277,8 +212,6 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
             val positionString = map.cameraPosition.toJson()
             preferences.edit().putString(PREFERENCE_CAMERA_POSITION, positionString).apply()
         }
-        tagretPolygon?.polygon?.let(map::removePolygon)
-        tagretPolygon = null
         if (service != null) {
             applicationContext.unbindService(this)
         }
@@ -290,9 +223,6 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
     override fun onStop() {
         mapView.onStop()
-//        if (this::locationLayerPlugin.isInitialized) {
-//            locationLayerPlugin.onStop()
-//        }
         super.onStop()
     }
 
@@ -301,8 +231,6 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         outState.putBoolean(STATE_RIDES, rides)
         outState.putBoolean(STATE_GRID, grid)
         outState.putBoolean(STATE_HEATMAP, heatmap)
-        outState.putParcelable(STATE_TARGET_POLYGON, tagretPolygon)
-//        outState.putParcelable(STATE_ROUTE_POINT, routePoint)
         outState.putBoolean(STATE_LOCATION, location)
         mapView.onSaveInstanceState(outState)
         super.onSaveInstanceState(outState)
@@ -318,25 +246,6 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         super.onDestroy()
     }
 
-//    @SuppressLint("NeedOnRequestPermissionsResult")
-//    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-//        onRequestPermissionsResult(requestCode, grantResults)
-//    }
-
-//    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-//        menuInflater.inflate(R.menu.menu_map, menu)
-//        return true
-//    }
-//
-//    override fun onOptionsItemSelected(item: MenuItem?): Boolean {
-//        if (item?.itemId == R.id.action_colors) {
-//            showSettings(settingsFragment.isHidden)
-//            return true
-//        }
-//        return super.onOptionsItemSelected(item)
-//    }
-
     override fun onBackPressed() {
         if (!settingsFragment.isHidden) {
             showSettings(false)
@@ -346,7 +255,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     override fun onSharedPreferenceChanged(preferences1: SharedPreferences?, key: String?) {
-        val style = map.style ?: return
+        val style = if (mapAllowed) map.style ?: return else return
         when (key) {
             explorerKey,
             clusterKey -> updateExplorerLayerColors(style)
@@ -358,8 +267,6 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
             mapKey -> {
                 val styleString = preferences.getString(mapKey, Style.OUTDOORS)
                 map.setStyle(styleString) { newStyle ->
-                    newStyle.layers.forEach { newStyle.removeLayer(it) }
-                    newStyle.sources.forEach { newStyle.removeSource(it) }
                     initMap(newStyle)
                 }
             }
@@ -382,46 +289,109 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
     override fun onServiceConnected(componentName: ComponentName?, binder: IBinder?) {
         service = (binder as TrackingService.LocalBinder).getService()
-//        service?.targetBounds?.let(this::drawTargetTile)
         updateTracking(true)
     }
 
     override fun onServiceDisconnected(componentName: ComponentName?) {
         service = null
-        tagretPolygon?.polygon?.let(map::removePolygon)
-        tagretPolygon = null
     }
-//    override fun onLocationChanged(location: Location?) {
-//        if (location != null) {
-//            if (moveCameraToLocation) {
-//                setCameraPosition(location)
-//                toggleLocationButton(false)
-//            }
-//            locationEngine.removeLocationEngineListener(this)
-//            locationListenerAdded = false
-//            moveCameraToLocation = true
-//        }
-//    }
 
-//    override fun onConnected() {
-//        requestLocationUpdatesWithPermissionCheck()
-//    }
+    private fun toggleLocationButton(enable: Boolean) {
+        myLocationButton.setImageResource(if (enable) R.drawable.ic_my_location else R.drawable.ic_disable_location)
+        cameraAtLocation = !enable
+    }
 
-//    @SuppressLint("MissingPermission")
-//    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-//    fun requestLocationUpdates() {
-////        locationEngine.requestLocationUpdates()
-//    }
+    @OnPermissionDenied(Manifest.permission.ACCESS_FINE_LOCATION)
+    fun onLocationPermissionDenied() {
+        Toast.makeText(this, "Permission is required to show your location!", Toast.LENGTH_SHORT).show()
+    }
 
-//    private fun toggleLocationButton(enable: Boolean) {
-//        myLocationButton.setImageResource(if (enable) R.drawable.ic_my_location else R.drawable.ic_disable_location)
-//        cameraAtLocation = !enable
-//    }
+    @OnNeverAskAgain(Manifest.permission.ACCESS_FINE_LOCATION)
+    fun onLocationNeverAskAgain() {
+        Toast.makeText(this, "Check permissions for app in System Settings!", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onMapReady(mapboxMap: MapboxMap) {
+        map = mapboxMap
+        mapAllowed = true
+        map.uiSettings.isAttributionEnabled = false
+        map.uiSettings.isLogoEnabled = false
+        TelemetryEnabler.updateTelemetryState(TelemetryEnabler.State.DISABLED)
+        val positionString = preferences.getString(PREFERENCE_CAMERA_POSITION, null)
+        positionString?.let { s ->
+            map.cameraPosition = Gson().fromJson(s)
+        }
+        val styleString = preferences.getString(mapKey, Style.OUTDOORS)
+        map.setStyle(styleString) { style ->
+            initMap(style)
+            if (location) {
+                enableLocationComponentWithPermissionCheck(style)
+            }
+        }
+        onMapInitDisposable = onMapInitObservable?.subscribe()
+
+        map.addOnMoveListener(object : MapboxMap.OnMoveListener {
+            override fun onMoveBegin(detector: MoveGestureDetector) {
+
+            }
+            override fun onMove(detector: MoveGestureDetector) {
+                toggleLocationButton(true)
+            }
+            override fun onMoveEnd(detector: MoveGestureDetector) {
+
+            }
+        })
+
+        map.addOnCameraMoveListener {
+            if (BuildConfig.DEBUG) {
+                debugInfo()
+            }
+            if (grid) {
+                updateGrid()
+            }
+        }
+
+        map.addOnMapClickListener {
+            if (!settingsFragment.isHidden) {
+                showSettings(false)
+                return@addOnMapClickListener true
+            }
+            return@addOnMapClickListener false
+        }
+    }
 
     private fun initMap(style: Style) {
         updateTilesAndRidesAndHeatmap(style)
         setupGrid(style)
         setupTracking(style)
+    }
+
+    @SuppressLint("MissingPermission")
+    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+    fun enableLocationComponent(style: Style) {
+        val options = LocationComponentOptions.builder(this)
+                .trackingGesturesManagement(true)
+                .build()
+        val activationOptions = LocationComponentActivationOptions
+                .builder(this, style)
+                .locationComponentOptions(options)
+                .build()
+        val locationComponent = map.locationComponent
+
+        locationComponent.activateLocationComponent(activationOptions)
+        locationComponent.applyStyle(options)
+        locationComponent.isLocationComponentEnabled = true
+        locationComponent.cameraMode = CameraMode.TRACKING
+        locationComponent.renderMode = RenderMode.COMPASS
+        location = true
+        toggleLocationButton(false)
+    }
+
+    private fun disableLocationComponent() {
+        val locationComponent = map.locationComponent
+        locationComponent.isLocationComponentEnabled = false
+        location = false
+        toggleLocationButton(true)
     }
 
     private fun updateTilesAndRidesAndHeatmap(style: Style) {
@@ -574,14 +544,14 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                 )), BELOW_LAYER)
     }
 
-//    @OnClick(R.id.myLocationButton)
-//    fun onLocationButtonClick() {
-//        if (location && cameraAtLocation) {
-//            disableMyLocation()
-//        } else {
-//            enableMyLocationWithPermissionCheck()
-//        }
-//    }
+    @OnClick(R.id.myLocationButton)
+    fun onLocationButtonClick() {
+        if (location && cameraAtLocation) {
+            disableLocationComponent()
+        } else {
+            map.style?.let { enableLocationComponentWithPermissionCheck(it) }
+        }
+    }
 
     @OnClick(R.id.explorerButton)
     fun onExplorerButtonClick() {
@@ -649,7 +619,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
         selector(getString(R.string.title_record_dialog), buttons) { _, i ->
             when (buttons[i]) {
-//                startString -> startRecordingWithPermissionCheck()
+                startString -> startRecordingWithPermissionCheck()
                 pauseString -> pauseRecording()
                 resumeString -> resumeRecording()
                 stopString -> stopRecording()
@@ -673,53 +643,6 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         map.animateCamera(CameraUpdateFactory.newLatLngZoom(
                 LatLng(location.latitude, location.longitude), CAMERA_ZOOM))
     }
-
-//    @SuppressLint("MissingPermission")
-//    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-//    fun enableMyLocation() {
-//        location = true
-//        if (!this::locationEngine.isInitialized) {
-//            locationEngine = LocationEngineProvider(this).obtainBestLocationEngineAvailable()
-//        }
-//        locationEngine.priority = LocationEnginePriority.HIGH_ACCURACY
-//        locationEngine.activate()
-//
-//        val lastLocation = locationEngine.lastLocation
-//        if (lastLocation != null && moveCameraToLocation) {
-//            setCameraPosition(lastLocation)
-//            toggleLocationButton(false)
-//        } else if (!locationListenerAdded) {
-//            locationListenerAdded = true
-//            locationEngine.addLocationEngineListener(this)
-//        }
-//
-//        if (!this::locationLayerPlugin.isInitialized) {
-//            locationLayerPlugin = LocationLayerPlugin(mapView, map, locationEngine)
-//        }
-//        locationLayerPlugin.isLocationLayerEnabled = true
-//    }
-
-//    @OnPermissionDenied(Manifest.permission.ACCESS_FINE_LOCATION)
-//    fun onLocationPermissionDenied() {
-//        Toast.makeText(this, "Permission is required to show your location!", Toast.LENGTH_SHORT).show()
-//    }
-//
-//    @OnNeverAskAgain(Manifest.permission.ACCESS_FINE_LOCATION)
-//    fun onLocationNeverAskAgain() {
-//        Toast.makeText(this, "Check permissions for app in System Settings!", Toast.LENGTH_SHORT).show()
-//    }
-
-//    private fun disableMyLocation() {
-//        location = false
-//        if (this::locationLayerPlugin.isInitialized) {
-//            locationLayerPlugin.isLocationLayerEnabled = false
-//        }
-//        if (this::locationEngine.isInitialized) {
-//            locationEngine.removeLocationUpdates()
-//            locationEngine.deactivate()
-//        }
-//        toggleLocationButton(true)
-//    }
 
     @SuppressLint("SetTextI18n")
     private fun debugInfo() {
@@ -811,34 +734,18 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         transaction.commit()
     }
 
-//    private fun addDestinationMarker(point: LatLng) {
-//        map.markers.forEach(map::removeMarker)
-//        map.addMarker(MarkerOptions()
-//                .position(LatLng(point.latitude, point.longitude))
-//                .title("Destination")
-//                .snippet("Click to remove"))
-//    }
+    @SuppressLint("MissingPermission")
+    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+    fun startRecording() {
+        if (!checkPlayServices()) return
 
-//    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-//    fun alertTile(point: LatLng) {
-//        if (service != null) unbindService(this)
-//        if (!checkPlayServices()) return
-//
-//        val bounds = point2bounds(point.latitude, point.longitude)
-//
-//    }
-
-//    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-//    fun startRecording() {
-//        if (!checkPlayServices()) return
-//
-//        val serviceIntent = Intent(this, TrackingService::class.java)
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//            startForegroundService(serviceIntent)
-//        } else {
-//            startService(serviceIntent)
-//        }
-//    }
+        val serviceIntent = Intent(this, TrackingService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+    }
 
     private fun pauseRecording() {
         sendBroadcast(Intent(TrackingService.ACTION_PAUSE))
@@ -851,58 +758,6 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     private fun stopRecording() {
         sendBroadcast(Intent(TrackingService.ACTION_STOP))
     }
-
-//    private fun drawTargetTile(bounds: LatLngBounds) {
-//        tagretPolygon?.polygon?.let(map::removePolygon)
-//        tagretPolygon = PolygonOptions()
-//                .add(bounds.northWest)
-//                .add(bounds.northEast)
-//                .add(bounds.southEast)
-//                .add(bounds.southWest)
-//                .add(bounds.northWest)
-//                .fillColor(Color.MAGENTA)
-//                .alpha(0.3f)
-//        tagretPolygon?.let(map::addPolygon)
-//    }
-
-//    private fun route(point: LatLng) {
-//        routeLine?.polyline?.let(map::removePolyline)
-//        addDestinationMarker(point)
-//        val myLocation = map.myLocation ?: return
-//        val origin = Position.fromLngLat(myLocation.longitude, myLocation.latitude)
-//        val destination = Position.fromLngLat(point.longitude, point.latitude)
-//        MapboxDirectionsRx.Builder()
-//                .setOrigin(origin)
-//                .setDestination(destination)
-//                .setOverview(DirectionsCriteria.OVERVIEW_FULL)
-//                .setProfile(DirectionsCriteria.PROFILE_CYCLING)
-//                .setAccessToken(Mapbox.getAccessToken())
-//                .build()
-//                .observable
-//                .subscribeOn(Schedulers.io())
-//                .observeOn(AndroidSchedulers.mainThread())
-//                .subscribe({
-//                    drawRoute(it.routes.first())
-//                    routePoint = point
-//                }, {
-//                    map.markers.forEach(map::removeMarker)
-//                    it.printStackTrace()
-//                    toast("Route not found.")
-//                })
-//    }
-//
-//    private fun drawRoute(route: DirectionsRoute) {
-//        val lineString = LineString.fromPolyline(route.geometry, PRECISION_6)
-//        val points = arrayListOf<LatLng>()
-//        lineString.coordinates.forEach { points.add(LatLng(
-//                it.latitude,
-//                it.longitude)) }
-//        routeLine = PolylineOptions()
-//                .addAll(points)
-//                .color(Color.parseColor("#009688"))
-//                .width(5f)
-//        routeLine?.let(map::addPolyline)
-//    }
 
     private fun updateExplorerLayerColors(style: Style) {
         val layer = style.getLayer(EXPLORER_LAYER_ID) ?: return

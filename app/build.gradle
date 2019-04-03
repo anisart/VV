@@ -88,13 +88,18 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     //    compile "org.jetbrains.kotlin:kotlin-android-extensions-runtime:$kotlin_version"
+    implementation "org.permissionsdispatcher:permissionsdispatcher:$permission_dispatcher_version", {
+        // if you don't use android.app.Fragment you can exclude support for them
+        exclude module: "support-v13"
+    }
+    kapt "org.permissionsdispatcher:permissionsdispatcher-processor:$permission_dispatcher_version"
     implementation 'com.github.dmytrodanylyk.android-process-button:library:1.0.4'
     implementation "com.jakewharton:butterknife:$butterknife_version"
     kapt "com.jakewharton:butterknife-compiler:$butterknife_version"
     implementation 'com.github.codekidX:storage-chooser:2.0.4.4', {
         exclude group: 'com.android.support'
     }
-    implementation 'com.mapbox.mapboxsdk:mapbox-android-sdk:7.2.0@aar', {
+    implementation 'com.mapbox.mapboxsdk:mapbox-android-sdk:7.3.0@aar', {
         transitive = true
         exclude group: 'com.android.support'
         exclude module: 'play-services-location'

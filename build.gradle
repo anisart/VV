@@ -3,6 +3,7 @@
 buildscript {
     ext.kotlin_version = '1.3.21'
     ext.butterknife_version = '10.1.0'
+    ext.permission_dispatcher_version = '4.3.0'
     ext.retrofit_version = '2.5.0'
     repositories {
         jcenter()

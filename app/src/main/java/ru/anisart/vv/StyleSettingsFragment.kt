@@ -2,9 +2,7 @@ package ru.anisart.vv
 
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.appcompat.widget.Toolbar
 import androidx.preference.ListPreference
 import androidx.preference.Preference
@@ -19,14 +17,12 @@ class StyleSettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSh
         setPreferencesFromResource(R.xml.preference_map, rootKey)
     }
 
-//    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-//        val view = inflater.inflate(R.layout.fragment_preference_style, container, false)
-////        view.setBackgroundColor(Color.WHITE)
-//        val toolbar = view.findViewById<Toolbar>(R.id.styleToolbar)
-//        toolbar.setNavigationIcon(R.drawable.ic_back)
-//        toolbar.setNavigationOnClickListener { listener?.onIconClick() }
-//        return view
-//    }
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val toolbar = view.findViewById<Toolbar>(R.id.styleToolbar)
+        toolbar.setNavigationIcon(R.drawable.ic_back)
+        toolbar.setNavigationOnClickListener { listener?.onIconClick() }
+    }
 
     override fun onSharedPreferenceChanged(preferences: SharedPreferences, key: String) {
         updatePreference(findPreference(key))
