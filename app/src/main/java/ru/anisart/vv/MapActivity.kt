@@ -322,9 +322,6 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     override fun onMapReady(mapboxMap: MapboxMap) {
         map = mapboxMap
         mapAllowed = true
-        map.uiSettings.isAttributionEnabled = false
-        map.uiSettings.isLogoEnabled = false
-        TelemetryEnabler.updateTelemetryState(TelemetryEnabler.State.DISABLED)
         val positionString = preferences.getString(PREFERENCE_CAMERA_POSITION, null)
         positionString?.let { s ->
             map.cameraPosition = Gson().fromJson(s)
@@ -531,6 +528,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         style.addSource(GeoJsonSource(TRACKING_TILES_SOURCE_ID))
         style.addLayer(FillLayer(TRACKING_TILES_LAYER_ID, TRACKING_TILES_SOURCE_ID))
         updateLayerColor(style, TRACKING_TILES_LAYER_ID, recordedTilesKey)
+        updateTracking(true)
     }
 
     private fun setupHeatmap(style: Style) {

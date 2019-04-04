@@ -21,7 +21,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 app:mapbox_uiRotateGestures="false"
-                app:mapbox_uiTiltGestures="false" />
+                app:mapbox_uiTiltGestures="false"
+                app:mapbox_uiLogoGravity="center_horizontal|bottom"
+                app:mapbox_uiAttributionGravity="center_horizontal|bottom"
+                app:mapbox_uiAttributionMarginLeft="60dp"/>
 
             <com.github.clans.fab.FloatingActionMenu
                 style="@style/vv_action_button"

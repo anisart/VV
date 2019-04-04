@@ -13,7 +13,7 @@ class App : Application() {
         const val PREFERENCE_HEATMAP_AUTH = "heatmap_auth"
     }
 
-    private val PUBLIC_KEY = "pk.eyJ1IjoiYW5pc2FydCIsImEiOiJjaWtsMHNuZWswMDZqdm1tNmYydWl6M2pvIn0.OFsPC78TmKIRtp9WhlsN_w"
+    private val PUBLIC_KEY = "pk.eyJ1IjoiYW5pc2FydCIsImEiOiJjanUyaXB3YmUwYngwNGV0YXN1Nnd4ZjJ6In0.e7TVR-I35TPG37z-I7v7rg"
 
     override fun onCreate() {
         super.onCreate()
