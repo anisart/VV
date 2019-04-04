@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     @BindView(R.id.recreateBtn)
     lateinit var recreateBtn: ActionProcessButton
 
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -71,19 +72,6 @@ class MainActivity : AppCompatActivity() {
         webView.addJavascriptInterface(this, "JSInterface")
         recreateBtn.setMode(ActionProcessButton.Mode.PROGRESS)
     }
-
-//    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-//        menuInflater.inflate(R.menu.menu_main, menu)
-//        return true
-//    }
-//
-//    override fun onOptionsItemSelected(item: MenuItem?): Boolean {
-//        if (item?.itemId == R.id.action_map) {
-//            startActivity(Intent(this, MapActivity::class.java))
-//                    return true
-//        }
-//        return super.onOptionsItemSelected(item)
-//    }
 
     @SuppressLint("NeedOnRequestPermissionsResult")
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -124,11 +112,6 @@ class MainActivity : AppCompatActivity() {
         }
         setResult(Activity.RESULT_OK)
     }
-
-//    @OnClick(R.id.mapBtn)
-//    fun onMapButtonClick(v: View) {
-//        startActivity(Intent(this, MapActivity::class.java))
-//    }
 
     @JavascriptInterface
     fun setExplorerTiles(tiles: Array<String>?, clusterTiles: Array<String>?) {

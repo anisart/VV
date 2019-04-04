@@ -56,36 +56,38 @@ import kotlin.collections.HashSet
 class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceChangeListener,
         ServiceConnection, OnMapReadyCallback {
 
-    private val CAMERA_ZOOM = 14.0
-    private val BELOW_LAYER = "waterway-label"
+    companion object {
+        private const val CAMERA_ZOOM = 14.0
+        private const val BELOW_LAYER = "waterway-label"
 
-    private val PLAY_SERVICES_RESOLUTION_REQUEST = 1
-    private val SYNC_SETTINGS_REQUEST = 2
+        private const val PLAY_SERVICES_RESOLUTION_REQUEST = 1
+        private const val SYNC_SETTINGS_REQUEST = 2
 
-    private val EXPLORER_SOURCE_ID = "explorer_source"
-    private val SQUARE_SOURCE_ID = "square_source"
-    private val RIDES_SOURCE_ID = "rides_source"
-    private val GRID_SOURCE_ID = "grid_source"
-    private val TRACKING_LINE_SOURCE_ID = "tracking_line_source"
-    private val TRACKING_TILES_SOURCE_ID = "tracking_tiles_source"
-    private val HEATMAP_SOURCE_ID = "heatmap_source"
-    private val EXPLORER_LAYER_ID = "explorer_layer"
-    private val SQUARE_LAYER_ID = "square_layer"
-    private val RIDES_LAYER_ID = "rides_layer"
-    private val GRID_LAYER_ID = "grid_layer"
-    private val TRACKING_LINE_LAYER_ID = "tracking_line_layer"
-    private val TRACKING_TILES_LAYER_ID = "tracking_tiles_layer"
-    private val HEATMAP_LAYER_ID = "heatmap_layer"
-    private val TYPE_FLAG = "cluster"
-    private val EXPLORER = 0
-    private val CLUSTER = 1
+        private const val EXPLORER_SOURCE_ID = "explorer_source"
+        private const val SQUARE_SOURCE_ID = "square_source"
+        private const val RIDES_SOURCE_ID = "rides_source"
+        private const val GRID_SOURCE_ID = "grid_source"
+        private const val TRACKING_LINE_SOURCE_ID = "tracking_line_source"
+        private const val TRACKING_TILES_SOURCE_ID = "tracking_tiles_source"
+        private const val HEATMAP_SOURCE_ID = "heatmap_source"
+        private const val EXPLORER_LAYER_ID = "explorer_layer"
+        private const val SQUARE_LAYER_ID = "square_layer"
+        private const val RIDES_LAYER_ID = "rides_layer"
+        private const val GRID_LAYER_ID = "grid_layer"
+        private const val TRACKING_LINE_LAYER_ID = "tracking_line_layer"
+        private const val TRACKING_TILES_LAYER_ID = "tracking_tiles_layer"
+        private const val HEATMAP_LAYER_ID = "heatmap_layer"
+        private const val TYPE_FLAG = "cluster"
+        private const val EXPLORER = 0
+        private const val CLUSTER = 1
 
-    private val STATE_EXPLORER = "explorer"
-    private val STATE_RIDES = "rides"
-    private val STATE_GRID = "grid"
-    private val STATE_HEATMAP = "heatmap"
-    private val STATE_LOCATION = "location"
-    private val PREFERENCE_CAMERA_POSITION = "camera_position"
+        private const val STATE_EXPLORER = "explorer"
+        private const val STATE_RIDES = "rides"
+        private const val STATE_GRID = "grid"
+        private const val STATE_HEATMAP = "heatmap"
+        private const val STATE_LOCATION = "location"
+        private const val PREFERENCE_CAMERA_POSITION = "camera_position"
+    }
 
     @BindString(R.string.key_color_explorer)
     lateinit var explorerKey: String
@@ -285,6 +287,12 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
             SYNC_SETTINGS_REQUEST -> if (resultCode == Activity.RESULT_OK && mapAllowed) map.style?.let { updateTilesAndRidesAndHeatmap(it) }
             else -> super.onActivityResult(requestCode, resultCode, data)
         }
+    }
+
+    @SuppressLint("NeedOnRequestPermissionsResult")
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        onRequestPermissionsResult(requestCode, grantResults)
     }
 
     override fun onServiceConnected(componentName: ComponentName?, binder: IBinder?) {

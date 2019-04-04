@@ -1,11 +1,7 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
-apply plugin: 'org.jetbrains.kotlin.android.extensions'
-
-androidExtensions {
-    experimental = true
-}
+apply plugin: 'kotlin-android-extensions'
 
 android {
     compileSdkVersion 28
@@ -13,7 +9,7 @@ android {
         applicationId "ru.anisart.vv"
         minSdkVersion 19
         targetSdkVersion 28
-        versionCode 45
+        versionCode 46
         versionName "1.7"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -81,34 +77,20 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2', {
-        exclude group: 'com.android.support', module: 'support-annotations'
-    }
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
     androidTestImplementation 'com.android.support.test:rules:1.0.2'
     testImplementation 'junit:junit:4.12'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    //    compile "org.jetbrains.kotlin:kotlin-android-extensions-runtime:$kotlin_version"
-    implementation "org.permissionsdispatcher:permissionsdispatcher:$permission_dispatcher_version", {
-        // if you don't use android.app.Fragment you can exclude support for them
-        exclude module: "support-v13"
-    }
+    implementation "org.permissionsdispatcher:permissionsdispatcher:$permission_dispatcher_version"
     kapt "org.permissionsdispatcher:permissionsdispatcher-processor:$permission_dispatcher_version"
     implementation 'com.github.dmytrodanylyk.android-process-button:library:1.0.4'
     implementation "com.jakewharton:butterknife:$butterknife_version"
     kapt "com.jakewharton:butterknife-compiler:$butterknife_version"
-    implementation 'com.github.codekidX:storage-chooser:2.0.4.4', {
-        exclude group: 'com.android.support'
-    }
+    implementation 'com.github.codekidX:storage-chooser:2.0.4.4'
     implementation 'com.mapbox.mapboxsdk:mapbox-android-sdk:7.3.0@aar', {
         transitive = true
-        exclude group: 'com.android.support'
-        exclude module: 'play-services-location'
     }
     implementation 'com.google.android.gms:play-services-location:16.0.0'
-    //    compile 'com.mapbox.mapboxsdk:mapbox-android-services:2.2.7@aar'
-    //    compile 'com.mapbox.mapboxsdk:mapbox-java-services-rx:2.2.7'
-    //    compile 'com.mapbox.mapboxsdk:mapbox-android-directions:1.0.0@aar'
-    //    compile 'com.esri.geometry:esri-geometry-api:1.2.1'
     implementation "com.squareup.retrofit2:retrofit:$retrofit_version"
     implementation "com.squareup.retrofit2:converter-gson:$retrofit_version"
     implementation "com.squareup.retrofit2:adapter-rxjava2:$retrofit_version"
@@ -122,6 +104,7 @@ dependencies {
     implementation 'com.patloew.rxlocation:rxlocation:1.0.5'
     implementation 'com.google.firebase:firebase-core:16.0.8'
     implementation 'androidx.preference:preference:1.1.0-alpha04'
+    implementation 'com.google.code.gson:gson:2.8.5'
 }
 repositories {
     jcenter()
