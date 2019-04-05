@@ -9,7 +9,7 @@ android {
         applicationId "ru.anisart.vv"
         minSdkVersion 19
         targetSdkVersion 28
-        versionCode 46
+        versionCode 47
         versionName "1.7"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -91,6 +91,7 @@ dependencies {
     implementation 'com.mapbox.mapboxsdk:mapbox-android-sdk:7.3.0@aar', {
         transitive = true
     }
+    implementation 'com.mapbox.mapboxsdk:mapbox-android-plugin-annotation-v7:0.5.0'
     implementation 'com.google.android.gms:play-services-location:16.0.0'
     implementation "com.squareup.retrofit2:retrofit:$retrofit_version"
     implementation "com.squareup.retrofit2:converter-gson:$retrofit_version"
