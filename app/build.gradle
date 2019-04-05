@@ -11,7 +11,7 @@ android {
         targetSdkVersion 28
         versionCode 46
         versionName "1.7"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled true
     }
@@ -77,8 +77,9 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
-    androidTestImplementation 'com.android.support.test:rules:1.0.2'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'
+    androidTestImplementation 'androidx.test:rules:1.1.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.0'
     testImplementation 'junit:junit:4.12'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation "org.permissionsdispatcher:permissionsdispatcher:$permission_dispatcher_version"
@@ -109,7 +110,7 @@ dependencies {
 repositories {
     jcenter()
     mavenCentral()
-    maven { url 'https://maven.google.com' }
+    google()
     maven { url "https://jitpack.io" }
 }
 
