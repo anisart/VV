@@ -19,7 +19,6 @@ import com.google.android.gms.common.GoogleApiAvailability
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.gson.Gson
 import com.mapbox.android.gestures.MoveGestureDetector
-import com.mapbox.android.telemetry.TelemetryEnabler
 import com.mapbox.geojson.*
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.geometry.LatLng
