@@ -4,7 +4,6 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.mapbox.mapboxsdk.annotations.BasePointCollection
 import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.geometry.LatLngBounds
 
@@ -66,16 +65,6 @@ fun latLng2tile(latLng: LatLng, zoom: Int = EXPLORER_ZOOM): Tile {
 
 fun alfaFromColor(rgba: Int) = ((rgba shr 24) and 0xFF) / 255f
 
-fun BasePointCollection.toBounds(): LatLngBounds? {
-    return if (points.size < 2) {
-        null
-    } else {
-        LatLngBounds.Builder()
-                .includes(points)
-                .build()
-    }
-}
-
 fun Any.toJson(): String = Gson().toJson(this)
 
 inline fun <reified T> Gson.fromJson(json: String): T = this.fromJson<T>(json, object: TypeToken<T>() {}.type)
@@ -96,3 +85,15 @@ fun <T> MutableSet<T>.addReplace(element: T) {
         add(element)
     }
 }
+
+val Any.TAG: String
+    get() {
+        val tag = javaClass.simpleName
+        return if (tag.length <= 23) tag else tag.substring(0, 23)
+    }
+
+val Any.NAME: String
+    get() {
+        val tag = javaClass.name
+        return if (tag.length <= 23) tag else tag.substring(0, 23)
+    }

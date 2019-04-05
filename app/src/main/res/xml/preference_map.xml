@@ -1,81 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen
+<androidx.preference.PreferenceScreen
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory
+    <androidx.preference.PreferenceCategory
         android:title="Colors">
 
-        <com.jaredrummler.android.colorpicker.ColorPreference
+        <com.jaredrummler.android.colorpicker.ColorPreferenceCompat
             android:defaultValue="0x9000FF00"
             android:key="@string/key_color_explorer"
             android:title="Explorer tiles"
             app:cpv_showAlphaSlider="true"/>
 
-        <com.jaredrummler.android.colorpicker.ColorPreference
+        <com.jaredrummler.android.colorpicker.ColorPreferenceCompat
             android:defaultValue="0x900000FF"
             android:key="@string/key_color_cluster"
             android:title="Cluster tiles"
             app:cpv_showAlphaSlider="true"/>
 
-        <com.jaredrummler.android.colorpicker.ColorPreference
+        <com.jaredrummler.android.colorpicker.ColorPreferenceCompat
             android:defaultValue="0x900000FF"
             android:key="@string/key_color_max_square"
             android:title="Max square border"
             app:cpv_showAlphaSlider="true"/>
 
-        <com.jaredrummler.android.colorpicker.ColorPreference
+        <com.jaredrummler.android.colorpicker.ColorPreferenceCompat
             android:defaultValue="0x90000000"
             android:key="@string/key_color_grid"
             android:title="Grid"
             app:cpv_showAlphaSlider="true"/>
 
-        <com.jaredrummler.android.colorpicker.ColorPreference
+        <com.jaredrummler.android.colorpicker.ColorPreferenceCompat
             android:defaultValue="0x90FF0000"
             android:key="@string/key_color_rides"
             android:title="Rides"
             app:cpv_showAlphaSlider="true"/>
 
-        <com.jaredrummler.android.colorpicker.ColorPreference
+        <com.jaredrummler.android.colorpicker.ColorPreferenceCompat
             android:defaultValue="0xFF000000"
             android:key="@string/key_color_recorded_track"
             android:title="Recorded track"
             app:cpv_showAlphaSlider="true"/>
 
-        <com.jaredrummler.android.colorpicker.ColorPreference
+        <com.jaredrummler.android.colorpicker.ColorPreferenceCompat
             android:defaultValue="0x90000000"
             android:key="@string/key_color_recorded_tiles"
             android:title="Recorded tiles"
             app:cpv_showAlphaSlider="true"/>
 
-    </PreferenceCategory>
+    </androidx.preference.PreferenceCategory>
 
-    <PreferenceCategory
+    <androidx.preference.PreferenceCategory
         android:title="Map">
 
-        <ListPreference
+        <androidx.preference.ListPreference
             android:defaultValue="@string/mapbox_style_outdoors"
             android:key="@string/key_map_style"
             android:title="Map style"
             android:entries="@array/map_style_entries"
             android:entryValues="@array/map_style_values"/>
 
-        <ListPreference
+        <androidx.preference.ListPreference
             android:defaultValue="@string/heatmap_type_default_value"
             android:key="@string/key_heatmap_type"
             android:title="Heatmap type"
             android:entries="@array/heatmap_type_entries"
             android:entryValues="@array/heatmap_type_values"/>
 
-        <ListPreference
+        <androidx.preference.ListPreference
             android:defaultValue="@string/heatmap_style_default_value"
             android:key="@string/key_heatmap_style"
             android:title="Heatmap style"
             android:entries="@array/heatmap_style_entries"
             android:entryValues="@array/heatmap_style_values"/>
 
-    </PreferenceCategory>
+    </androidx.preference.PreferenceCategory>
 
-
-
-</PreferenceScreen>
+</androidx.preference.PreferenceScreen>

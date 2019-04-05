@@ -14,8 +14,8 @@ import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.preference.PreferenceManager
-import android.support.annotation.RequiresApi
-import android.support.v4.app.NotificationCompat
+import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.LocationRequest
 import com.google.gson.Gson
 import com.mapbox.mapboxsdk.geometry.LatLng
@@ -23,7 +23,6 @@ import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import com.patloew.rxlocation.RxLocation
 import io.reactivex.disposables.Disposable
 import org.jetbrains.anko.toast
-import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 
@@ -31,26 +30,26 @@ import kotlin.collections.HashSet
 class TrackingService : Service() {
 
     companion object {
-        val EXTRA_TARGET_BOUNDS = "target_bounds"
-        val EXTRA_NEW_TILE = "new_tile"
-        val PREFERENCE_ACQUIRED_TILES = "acquired_tiles"
-        val PREFERENCE_TRACK = "track"
-        val ACTION_START = TrackingService::class.java.canonicalName + "start"
-        val ACTION_PAUSE = TrackingService::class.java.canonicalName + "pause"
-        val ACTION_RESUME = TrackingService::class.java.canonicalName + "resume"
-        val ACTION_STOP = TrackingService::class.java.canonicalName + "stop"
-        val ACTION_TRACK = TrackingService::class.java.canonicalName + "track"
+        const val EXTRA_TARGET_BOUNDS = "target_bounds"
+        const val EXTRA_NEW_TILE = "new_tile"
+        const val PREFERENCE_ACQUIRED_TILES = "acquired_tiles"
+        const val PREFERENCE_TRACK = "track"
+        val ACTION_START = TrackingService.NAME + "start"
+        val ACTION_PAUSE = TrackingService.NAME + "pause"
+        val ACTION_RESUME = TrackingService.NAME + "resume"
+        val ACTION_STOP = TrackingService.NAME + "stop"
+        val ACTION_TRACK = TrackingService.NAME + "track"
+
+        private const val SERVICE_ID = 1
+        private const val CHANNEL_ID = "CHANNEL_ID"
+        private const val CHANNEL_NAME = "Tile alerts"
+        private const val CHANNEL_DESCRIPTION = ""
+        private const val PREFERENCE_BOUNDS = "PREFERENCE_BOUNDS"
     }
 
     enum class State {
         INIT, RECORDING, PAUSED, STOPPED
     }
-
-    private val SERVICE_ID = 1
-    private val CHANNEL_ID = "CHANNEL_ID"
-    private val CHANNEL_NAME = "Tile alerts"
-    private val CHANNEL_DESCRIPTION = ""
-    private val PREFERENCE_BOUNDS = "PREFERENCE_BOUNDS"
 
     private val binder = LocalBinder()
     private lateinit var preferences: SharedPreferences
@@ -104,7 +103,6 @@ class TrackingService : Service() {
                     ?.let { acquiredTiles += Gson().fromJson<HashSet<Tile>>(it) }
             resume()
         }
-        System.err.println("startForeground " + Date().toString())
         startForeground(SERVICE_ID, getNotification().build())
     }
 
@@ -114,14 +112,12 @@ class TrackingService : Service() {
         if (!checkPermission()) {
             return START_NOT_STICKY
         }
-        System.err.println("onStartCommand " + Date().toString())
         sendBroadcast(Intent(ACTION_START))
         resume()
         return START_STICKY
     }
 
     override fun onDestroy() {
-        System.err.println("onDestroy " + Date().toString())
         subscription?.dispose()
         unregisterReceiver(receiver)
         super.onDestroy()

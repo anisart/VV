@@ -2,8 +2,8 @@ package ru.anisart.vv
 
 class Analytics {
     companion object {
-        val explorerTiles = "explorer_tiles"
-        var clusterTiles = "cluster_tiles"
-        val activities = "activities"
+        const val explorerTiles = "explorer_tiles"
+        const val clusterTiles = "cluster_tiles"
+        const val activities = "activities"
     }
 }
