@@ -1,0 +1,23 @@
+{
+  "version": 8,
+  "name": "OpenStreetMap",
+  "sources": {
+    "openstreetmap": {
+      "type": "raster",
+      "tiles": [
+        "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      ],
+      "tileSize": 256,
+      "attribution": "<a href=\"https://www.openstreetmap.org/copyright/\" target=\"_blank\">&copy; OpenStreetMap</a>"
+    }
+  },
+  "layers": [{
+    "id": "openstreetmap",
+    "type": "raster",
+    "source": "openstreetmap",
+    "minzoom": 0,
+    "maxzoom": 22
+  }]
+}
