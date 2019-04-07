@@ -1,0 +1,23 @@
+{
+  "version": 8,
+  "name": "OpenCycleMap",
+  "sources": {
+    "opencyclemap": {
+      "type": "raster",
+      "tiles": [
+        "https://a.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=7bd5ed2197cf4da29fa26de0ba6530cc",
+        "https://b.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=7bd5ed2197cf4da29fa26de0ba6530cc",
+        "https://c.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=7bd5ed2197cf4da29fa26de0ba6530cc"
+      ],
+      "tileSize": 256,
+      "attribution": "<a href=\"https://www.thunderforest.com/terms/\" target=\"_blank\">&copy; Thunderforest</a> <a href=\"https://www.openstreetmap.org/copyright/\" target=\"_blank\">&copy; OpenStreetMap</a>"
+    }
+  },
+  "layers": [{
+    "id": "opencyclemap",
+    "type": "raster",
+    "source": "opencyclemap",
+    "minzoom": 0,
+    "maxzoom": 22
+  }]
+}

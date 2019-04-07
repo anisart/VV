@@ -37,6 +37,9 @@
         <item>Outdoors</item>
         <item>Satellite</item>
         <item>Satellite streets</item>
+        <item>DigitalGlobe Premium</item>
+        <item>OpenCycleMap</item>
+        <item>OpenStreetMap Carto</item>
     </string-array>
     <string name="mapbox_style_bright">mapbox://styles/mapbox/bright-v9</string>
     <string-array name="map_style_values">
@@ -47,6 +50,9 @@
         <item>@string/mapbox_style_outdoors</item>
         <item>@string/mapbox_style_satellite</item>
         <item>@string/mapbox_style_satellite_streets</item>
+        <item>asset://dg_premium_style.json</item>
+        <item>asset://opencyclemap_style.json</item>
+        <item>asset://openstreetmap_style.json</item>
     </string-array>
 
     <string-array name="heatmap_type_entries">

@@ -269,6 +269,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
                 val styleString = preferences.getString(mapKey, Style.OUTDOORS)
                 map.setStyle(styleString) { newStyle ->
                     initMap(newStyle)
+                    firebaseAnalytics.setUserProperty(Analytics.mapStyle, styleString)
                 }
             }
             heatmapTypeKey,
@@ -518,6 +519,9 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         gridLayer.minZoom = 10f
         style.addLayer(gridLayer)
         updateLayerColor(style, GRID_LAYER_ID, gridKey)
+        if (grid) {
+            updateGrid()
+        }
     }
 
     private fun setupTracking(style: Style) {
@@ -542,7 +546,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         }
         style.addSource(RasterSource(HEATMAP_SOURCE_ID,
                 TileSet("2.1.0", url)
-                        .apply { minZoom = 1f; maxZoom = 15f }, 256))
+                        .apply { minZoom = 1f; maxZoom = 15f; attribution = "<a href=\"https://www.strava.com/\" target=\"_blank\">&copy; Strava</a>" }, 256))
         style.addLayerBelow(RasterLayer(HEATMAP_LAYER_ID, HEATMAP_SOURCE_ID)
                 .withProperties(PropertyFactory.visibility(
                         if (heatmap) Property.VISIBLE else Property.NONE

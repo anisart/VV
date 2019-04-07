@@ -24,7 +24,8 @@
                 app:mapbox_uiTiltGestures="false"
                 app:mapbox_uiLogoGravity="center_horizontal|bottom"
                 app:mapbox_uiAttributionGravity="center_horizontal|bottom"
-                app:mapbox_uiAttributionMarginLeft="60dp"/>
+                app:mapbox_uiAttributionMarginLeft="60dp"
+                app:mapbox_cameraZoomMax="18"/>
 
             <com.github.clans.fab.FloatingActionMenu
                 style="@style/vv_action_button"

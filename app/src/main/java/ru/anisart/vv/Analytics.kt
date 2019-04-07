@@ -5,5 +5,6 @@ class Analytics {
         const val explorerTiles = "explorer_tiles"
         const val clusterTiles = "cluster_tiles"
         const val activities = "activities"
+        const val mapStyle = "map_style"
     }
 }
