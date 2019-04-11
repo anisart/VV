@@ -9,7 +9,7 @@ android {
         applicationId "ru.anisart.vv"
         minSdkVersion 19
         targetSdkVersion 28
-        versionCode 48
+        versionCode 49
         versionName "1.8"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
