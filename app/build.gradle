@@ -106,6 +106,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-core:16.0.8'
     implementation 'androidx.preference:preference:1.1.0-alpha04'
     implementation 'com.google.code.gson:gson:2.8.5'
+    implementation 'com.crashlytics.sdk.android:crashlytics:2.9.9'
 }
 repositories {
     jcenter()
@@ -114,4 +115,5 @@ repositories {
     maven { url "https://jitpack.io" }
 }
 
+apply plugin: 'io.fabric'
 apply plugin: 'com.google.gms.google-services'
