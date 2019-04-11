@@ -14,6 +14,7 @@ import androidx.preference.PreferenceManager
 import butterknife.BindString
 import butterknife.ButterKnife
 import butterknife.OnClick
+import com.crashlytics.android.Crashlytics
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -150,6 +151,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_map)
         ButterKnife.bind(this)
+        Crashlytics.log("MapActivity onCreate")
         supportActionBar?.hide()
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
         preferences = PreferenceManager.getDefaultSharedPreferences(this)
@@ -185,16 +187,19 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        Crashlytics.log("MapActivity onNewIntent")
         setIntent(intent)
     }
 
     override fun onStart() {
         super.onStart()
+        Crashlytics.log("MapActivity onStart")
         mapView.onStart()
     }
 
     override fun onResume() {
         super.onResume()
+        Crashlytics.log("MapActivity onResume")
         mapView.onResume()
         preferences.registerOnSharedPreferenceChangeListener(this)
         registerReceiver(receiver, intentFilter(TrackingService.ACTION_START, TrackingService.ACTION_TRACK))
@@ -204,6 +209,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     override fun onPause() {
+        Crashlytics.log("MapActivity onPause")
         onMapInitDisposable?.dispose()
         tilesDisposable?.dispose()
         maxSquareDisposable?.dispose()
@@ -223,11 +229,13 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     override fun onStop() {
+        Crashlytics.log("MapActivity onStop")
         mapView.onStop()
         super.onStop()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        Crashlytics.log("MapActivity onSaveInstanceState")
         outState.putBoolean(STATE_EXPLORER, explorer)
         outState.putBoolean(STATE_RIDES, rides)
         outState.putBoolean(STATE_GRID, grid)
@@ -238,11 +246,13 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     override fun onLowMemory() {
+        Crashlytics.log("MapActivity onLowMemory")
         mapView.onLowMemory()
         super.onLowMemory()
     }
 
     override fun onDestroy() {
+        Crashlytics.log("MapActivity onDestroy")
         mapView.onDestroy()
         super.onDestroy()
     }
@@ -256,6 +266,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     override fun onSharedPreferenceChanged(preferences1: SharedPreferences?, key: String?) {
+        Crashlytics.log("MapActivity onSharedPreferenceChanged $key")
         val style = if (mapAllowed) map.style ?: return else return
         when (key) {
             explorerKey,
@@ -320,6 +331,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     override fun onMapReady(mapboxMap: MapboxMap) {
+        Crashlytics.log("MapActivity onMapReady")
         map = mapboxMap
         mapAllowed = true
         val positionString = preferences.getString(PREFERENCE_CAMERA_POSITION, null)
@@ -366,6 +378,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     private fun initMap(style: Style) {
+        Crashlytics.log("MapActivity initMap")
         updateTilesAndRidesAndHeatmap(style)
         setupGrid(style)
         setupTracking(style)
@@ -374,6 +387,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     @SuppressLint("MissingPermission")
     @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun enableLocationComponent(style: Style) {
+        Crashlytics.log("MapActivity enableLocationComponent")
         val options = LocationComponentOptions.builder(this)
                 .trackingGesturesManagement(true)
                 .build()
@@ -393,6 +407,7 @@ class MapActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCha
     }
 
     private fun disableLocationComponent() {
+        Crashlytics.log("MapActivity disableLocationComponent")
         val locationComponent = map.locationComponent
         locationComponent.isLocationComponentEnabled = false
         location = false

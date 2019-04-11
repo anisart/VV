@@ -16,6 +16,7 @@ import android.os.Build
 import android.preference.PreferenceManager
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import com.crashlytics.android.Crashlytics
 import com.google.android.gms.location.LocationRequest
 import com.google.gson.Gson
 import com.mapbox.mapboxsdk.geometry.LatLng
@@ -131,6 +132,7 @@ class TrackingService : Service() {
     }
 
     private fun stop() {
+        Crashlytics.log("TrackingService STOPPED")
         state = State.STOPPED
         preferences.edit {
             putString(PREFERENCE_TRACK, null)
@@ -140,6 +142,7 @@ class TrackingService : Service() {
     }
 
     private fun pause() {
+        Crashlytics.log("TrackingService PAUSED")
         state = State.PAUSED
         subscription?.dispose()
         val resumeIntent = PendingIntent.getBroadcast(this, 0, Intent(ACTION_RESUME), PendingIntent.FLAG_UPDATE_CURRENT)
@@ -151,6 +154,7 @@ class TrackingService : Service() {
     }
 
     private fun resume() {
+        Crashlytics.log("TrackingService RECORDING")
         state = State.RECORDING
         startLocating()
         val pauseIntent = PendingIntent.getBroadcast(this, 0, Intent(ACTION_PAUSE), PendingIntent.FLAG_UPDATE_CURRENT)

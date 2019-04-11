@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "706342316812-ufiglbam9hhmcv16h7k7s70vf4aqmtan.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ru.anisart.vv",
+            "certificate_hash": "6370ef01cb01b468c48ec36958c6595461f959e7"
+          }
+        },
+        {
           "client_id": "706342316812-jvegtk8iifl24um4e1o842b0agg4i18l.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -25,15 +33,13 @@
         }
       ],
       "services": {
-        "analytics_service": {
-          "status": 1
-        },
         "appinvite_service": {
-          "status": 1,
-          "other_platform_oauth_client": []
-        },
-        "ads_service": {
-          "status": 2
+          "other_platform_oauth_client": [
+            {
+              "client_id": "706342316812-jvegtk8iifl24um4e1o842b0agg4i18l.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     },
@@ -56,15 +62,13 @@
         }
       ],
       "services": {
-        "analytics_service": {
-          "status": 1
-        },
         "appinvite_service": {
-          "status": 1,
-          "other_platform_oauth_client": []
-        },
-        "ads_service": {
-          "status": 2
+          "other_platform_oauth_client": [
+            {
+              "client_id": "706342316812-jvegtk8iifl24um4e1o842b0agg4i18l.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
